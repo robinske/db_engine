@@ -1,0 +1,3 @@
+need messages passed in nc localhost to be saved to a file/db in byte structure
+
+need to have commands that pass this information for select/create/update
