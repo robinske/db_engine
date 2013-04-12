@@ -20,10 +20,6 @@ package main
     }
   }
 
-  func writer(w io.Writer) {
-
-  }
-
   func main() {
     c, err := net.Dial("tcp", ":4127") // sets a connection, c, to the port 4127
     if err != nil {

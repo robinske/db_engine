@@ -4,9 +4,11 @@
 package main
 import (
     "net"
+    "net/http"
     "log"
     "io"
     "os"
+    "fmt"
 )
 
 // Function to create a write file
@@ -51,8 +53,12 @@ func echoServer(c net.Conn) {
         }
     }
 }
+func handler(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
+}
 
 func main() {
+    http.HandleFunc("/", handler)
     l, err := net.Listen("tcp", ":4127")
     if err != nil {
         log.Fatal(err)
