@@ -34,8 +34,7 @@ package main
     go reader(c) // concurrent process / Goroutine
     
     var message string
-    // insert a pointer? ">>"
-    fmt.Scanf("%x", &message) // only accepts the first word with &message, accepts/concatenates words with just message)
+    fmt.Scanf("%s", &message)// only accepts the first word with &message, accepts/concatenates words with just message)
     // string module might help with this
 
     for {
@@ -50,6 +49,6 @@ package main
             log.Fatal(err)
             break
         }
-        fmt.Scanf("%s", message)
+        fmt.Scanf("%s", &message)
     }
   }
