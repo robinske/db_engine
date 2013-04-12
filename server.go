@@ -33,7 +33,7 @@ func echoServer(c net.Conn) {
         // sets a variable of "data" to a slice of buf
         data := buf[0:nr]
         
-        fo, err := os.OpenFile("output.txt", os.O_RDWR|os.O_APPEND, 0666) // 0666 is the tag for who can read and write to the file
+        fo, err := os.OpenFile("output", os.O_RDWR|os.O_APPEND, 0666) // 0666 is the tag for who can read and write to the file per system reqs
         fo.Seek(0,2) // 2 means go to the end of the file, 0 is the relative position to the end
         if err != nil {
             log.Fatal(err)
@@ -43,7 +43,6 @@ func echoServer(c net.Conn) {
     
         _, err = fo.Write(data) // write to a file!!! / Make this optional file input string
 
-        println("Testing byte print:", data)
         println("Server received:", string(data)) // have it store this to a file
 
         _, err = c.Write(data)
