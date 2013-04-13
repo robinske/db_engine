@@ -36,3 +36,77 @@ Host: localhost:4127
 User-Agent: Go http package
 Accept-Encoding: gzip
 
+GET / HTTP/1.1
+Host: localhost:4127
+User-Agent: Go http package
+Accept-Encoding: gzip
+
+GET / HTTP/1.1
+Host: localhost:4127
+User-Agent: Go http package
+Accept-Encoding: gzip
+
+GET / HTTP/1.1
+Host: localhost:4127
+User-Agent: Go http package
+Accept-Encoding: gzip
+
+GET / HTTP/1.1
+Host: localhost:4127
+User-Agent: Go http package
+Accept-Encoding: gzip
+
+hicynthiaGET / HTTP/1.1
+Host: localhost:4127
+User-Agent: Go http package
+Accept-Encoding: gzip
+
+GET / HTTP/1.1
+Host: localhost:4127
+User-Agent: Go http package
+Accept-Encoding: gzip
+
+GET / HTTP/1.1
+Host: localhost:4127
+User-Agent: Go http package
+Accept-Encoding: gzip
+
+GET / HTTP/1.1
+Host: localhost:4127
+User-Agent: Go http package
+Accept-Encoding: gzip
+
+GET / HTTP/1.1
+Host: 127.0.0.1:4127
+User-Agent: Go http package
+Accept-Encoding: gzip
+
+GET / HTTP/1.1
+Host: 127.0.0.1:4127
+User-Agent: Go http package
+Accept-Encoding: gzip
+
+hichristianGET / HTTP/1.1
+Host: localhost:4127
+User-Agent: Go http package
+Accept-Encoding: gzip
+
+GET /
+
+
+
+
+
+
+
+
+a
+GET /blah HTTP/1.1
+User-Agent: curl/7.24.0 (x86_64-apple-darwin12.0) libcurl/7.24.0 OpenSSL/0.9.8r zlib/1.2.5
+Host: localhost:4127
+Accept: */*
+
+dfasdfsda
+
+asdasdasdas
+hiaslkdjgall;kk,l;kljklj;llkjlkjmjlkjjmGET/omgPUT/omg5888algkjdfho**TTTSAVELOADtwowords

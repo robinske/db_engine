@@ -4,11 +4,11 @@
 package main
 import (
     "net"
-    "net/http"
+    // "net/http"
     "log"
     "io"
     "os"
-    "fmt"
+    // "fmt"
 )
 
 // Function to create a write file
@@ -28,7 +28,7 @@ func echoServer(c net.Conn) {
         // sets two variables: nr (stands for??) and err to read the byte elements
         nr, err := c.Read(buf)
         // ignore errors that aren't nil
-        if err != nil && err != io.EOF {
+        if err == io.EOF {
             return
         }
 
@@ -53,12 +53,12 @@ func echoServer(c net.Conn) {
         }
     }
 }
-func handler(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
-}
+// func handler(w http.ResponseWriter, r *http.Request) {
+//     fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
+// }
 
 func main() {
-    http.HandleFunc("/", handler)
+    // http.HandleFunc("/", handler)
     l, err := net.Listen("tcp", ":4127")
     if err != nil {
         log.Fatal(err)

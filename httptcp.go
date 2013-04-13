@@ -9,15 +9,13 @@ import (
 	"fmt"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
-}
-
 func main() {
-  	http.HandleFunc("/", handler)
   	resp, err := http.Get("http://localhost:4127")
-  	if err != nil {
-  		log.Fatal(err)
+  	if err == nil {
+      fmt.Printf("errorrrrr")
+    }
+    if err != nil {
+      log.Fatal(err)
   	}
   	body, err := ioutil.ReadAll(resp.Body)
   	resp.Body.Close()
