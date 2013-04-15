@@ -12,6 +12,9 @@ package main
     "os"
   )
 
+type cacheData map[string]string
+// type dataObject
+
 func reader(r io.Reader) {
   buf := make([]byte, 1024) // makes a list of bytes / why 1024? why a list? whyyyyy
   for {
@@ -23,33 +26,61 @@ func reader(r io.Reader) {
   }
 }
 
-func saveToDict(message string) {
-
-
-
-  
+func talkToDB() (cacheData) {
+  data := make(cacheData)
+  fmt.Println("YOU'VE TALKED TO THE DB")
+  return data
 }
 
-func parseRequest(message string) {
+func get(key, instruct string) {
+  fmt.Printf("You called the %s function\n", instruct)
+  fmt.Printf("We'll get the value of key %s\n", key)
+  
+  //fmt.Println(data[key])
+}
+
+func put(key, value string) {
+  // fmt.Printf("You called the %s function\n", instruct)
+  fmt.Printf("We'll put %s:%s in the dictionary\n", key, value)
+  //data := cacheData{key:value}
+  //fmt.Println(data[key]) // should print value
+}
+
+func save(key, value, instruct string) {
+  fmt.Printf("You called the %s function\n", instruct)
+  fmt.Printf("We'll save %s:%s from dictionary to disk\n", key, value)
+}
+
+func parseRequest(message string) (string) {
   msgSplit := strings.Split(message, " ")
 
-  fmt.Printf("%q\n", message)
-  fmt.Printf("%q\n", msgSplit)
+  //fmt.Printf("%s", message)
+  //fmt.Printf("%s", msgSplit)
 
-  if msgSplit[0] == "GET" {
-    // GET function
-    fmt.Printf("you called the %s function\n", msgSplit[0])
+  instruct := msgSplit[0]
+  key := msgSplit[1]
+  value := msgSplit[2]
+
+  // if len(msgSplit) < 2 {
+    // handle error
+  // }
+  // database := "database" // could be a "FROM" statement later
+
+  
+
+  switch instruct {
+    case "GET": get(key, instruct)
+    case "PUT": put(key, value)
+    case "SAVE": save(key, value, instruct)
+    default: fmt.Println("try again idiot")
   }
 
-  if msgSplit[0] == "PUT" {
-    // PUT function
-    fmt.Printf("you called the %s function\n", msgSplit[0])
-  }
+  return value
+}
 
-  if msgSplit[0] == "SAVE" {
-    // WRITE TO FILE function
-    fmt.Printf("you called the %s function\n", msgSplit[0])
-  }
+func addRequestToDict(message string) {
+
+
 }
 
 func main() {
@@ -60,10 +91,12 @@ func main() {
   defer c.Close()
 
   go reader(c) // concurrent process / Goroutine
+  //go talkToDB()
   
   for {
     input := bufio.NewReader(os.Stdin)
-    message, err := input.ReadString('\n') // message resets with each new input
+    rawMessage, err := input.ReadString('\n') // message resets with each new input
+    message := strings.ToUpper(rawMessage) // capitalize/normalize input
     if err != nil {
       log.Fatal(err)
     }
