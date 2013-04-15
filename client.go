@@ -27,13 +27,6 @@ func reader(r io.Reader) {
 }
 
 func talkToDictionary(instruct, key, value string, dictionary cacheData) (cacheData) {
-  
-  
-  // ints := []int{1,2,3}
-  // values := []string{instruct, key, value}
-
-  // dict2 := make(map[ints int] values string)
-  // fmt.Println(dict2)
 
   switch instruct {
     case "GET": get(key, instruct, dictionary)
@@ -81,16 +74,10 @@ func parseRequest(message string) (string, cacheData) {
   instruct := msgSplit[0]
   key := msgSplit[1]
   value := msgSplit[2]
-  // value := msgSplit[2:]
-  // if len(value) == 0 {
-  //   return
-  // }
 
-  // if len(msgSplit) < 2 {
-    // handle error
-  // }
-  // database := "database" // could be a "FROM" statement later
-  var dictionary = make(cacheData) //{key:value}
+  // need to handle message length error - only works for 3+ word inputs right now
+
+  var dictionary = make(cacheData)
   fmt.Println("printing base dictionary", dictionary)
 
   talkToDictionary(instruct, key, value, dictionary)
@@ -106,7 +93,6 @@ func main() {
   defer c.Close()
 
   go reader(c) // concurrent process / Goroutine
-  //go talkToDB()
   
   for {
     input := bufio.NewReader(os.Stdin)

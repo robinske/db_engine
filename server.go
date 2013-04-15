@@ -8,7 +8,11 @@ import (
     "log"
     "io"
     "os"
-    // "fmt"
+    //"fmt"
+    //"time"
+    //"math/rand"
+    "encoding/binary"
+    "crypto/rand"
 )
 
 func echoServer(c net.Conn) {
@@ -37,6 +41,13 @@ func echoServer(c net.Conn) {
     
         _, err = fo.Write(data) // write to a file!!! / Make this optional file input string
 
+        var n int
+        binary.Read(rand.Reader, binary.LittleEndian, &n)
+
+        dictionary := make(map[int]string)
+        println(string(dictionary))
+        dictionary[n] = string(data)
+        println(string(dictionary))
 // WRITE TO DATABASE END
 
         println("Server received:", string(data)) // have it store this to a file
