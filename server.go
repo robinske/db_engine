@@ -15,6 +15,11 @@ import (
 type cacheData map[string]string
 var dictionary = cacheData {} // Declare global variable so not to overwrite
 
+type T1 struct {
+    f1 []byte
+    f2 int
+}
+
 func echoServer(c net.Conn) {
     for {
         buf := make([]byte, 512) // makes a buffer to keep chunks that are read/written
@@ -28,13 +33,13 @@ func echoServer(c net.Conn) {
         message := string(data)
         instruct, key, value := parseRequest(message)
 
-        talkToDictionary(instruct, key, dictionary, value)
+        talkToDictionary(c, instruct, key, dictionary, value)
 
         fmt.Printf("Server received: %s", string(data))
-        _, err = c.Write(data)
-        if err != nil {
-            log.Fatal(err)
-        }
+        // _, err = c.Write(data) // this writes things for the client
+        // if err != nil {
+        //     log.Fatal(err)
+        // }
     }
 }
 
@@ -62,12 +67,12 @@ func parseRequest(message string) (instruct, key, value string) {
     return
 }
 
-func talkToDictionary(instruct, key string, dictionary cacheData, optionalValue...string) (cacheData) {
+func talkToDictionary(c net.Conn, instruct, key string, dictionary cacheData, optionalValue...string) (cacheData) {
 
     value := strings.Join(optionalValue[:], " ")
 
     switch instruct {
-        case "GET": get(key, dictionary)
+        case "GET": get(c, key, dictionary)
         case "PUT": put(key, value, dictionary)
         //case "SAVE": save(key, value, instruct, dictionary)
         default: fmt.Println("try again idiot")
@@ -76,7 +81,7 @@ func talkToDictionary(instruct, key string, dictionary cacheData, optionalValue.
     return dictionary
 }
 
-func get(key string, dictionary cacheData) (value string) {
+func get(c net.Conn, key string, dictionary cacheData) (value string) {
 
     value = dictionary[key]
 
@@ -84,6 +89,8 @@ func get(key string, dictionary cacheData) (value string) {
         println("Printing value: NONE", )
     } else {
         fmt.Printf("Printing value: %s\n", value)
+        byteValue := []byte(value)
+        c.Write(byteValue) // sends the value back over to the client
     }
 
     // RETURN DATA TO THE CLIENT

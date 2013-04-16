@@ -12,30 +12,16 @@ import (
     "fmt"
 )
 
-func reader(r io.Reader, rawValue...string) {
-    buf := make([]byte, 1024) // makes a list of bytes / why 1024? why a list? whyyyyy
+func reader(r io.Reader) {
+    buf := make([]byte, 1024)
     for {
-        n, err := r.Read(buf[:]) // calls the read method on r (which is passed in but what is r?? sets this instance to n
+        n, err := r.Read(buf[:]) // calls the read method on io reader variable r, sets instance to n
         if err != nil {
           return
         }
-        fmt.Printf("Client dialed: %s", string(buf[0:n])) // can do println to add a buffer space between inputs
-
-        displayResults()
-
-        value := strings.Join(rawValue[:], " ")
-        if value != "" {
-          fmt.Printf("Value is: %s", value)
-
-        }
+        fmt.Printf("Value: %s\n", string(buf[0:n])) // how to make this dynamic based on input?
+        // can do println to add a buffer space between inputs
     }
-}
-
-func displayResults() {
-    
-    // can't listen again, port is declared as already in use
-    // want to show the value of things like Get commands
-
 }
 
 func main() {
@@ -43,6 +29,7 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
+
     defer c.Close()
 
     go reader(c) // concurrent process / Goroutine
