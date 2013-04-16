@@ -12,12 +12,9 @@ import (
     "fmt"
 )
 
-type Object struct {
-    Dictionary map[string]string
-}
-
-func (o *Object) Value() string {
-    return o.Dictionary[key]
+type structDict struct {
+    Key string
+    Value string
 }
 
 type cacheData map[string]string
