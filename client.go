@@ -9,6 +9,7 @@ package main
     "strings"
     "bufio"
     "os"
+    "fmt"
   )
 
 func reader(r io.Reader) {
@@ -18,8 +19,13 @@ func reader(r io.Reader) {
     if err != nil {
       return
     }
-    println("Client dialed:", string(buf[0:n]))
+    fmt.Printf("Client dialed: %s", string(buf[0:n])) // can do println to add a buffer space between inputs
   }
+}
+
+func displayResults() {
+
+  
 }
 
 func main() {

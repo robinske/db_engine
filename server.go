@@ -13,7 +13,7 @@ import (
 )
 
 type cacheData map[string]string
-var dictionary = cacheData {}
+var dictionary = cacheData {} // Declare global variable so not to overwrite
 
 func echoServer(c net.Conn) {
     for {
@@ -30,7 +30,7 @@ func echoServer(c net.Conn) {
 
         talkToDictionary(instruct, key, dictionary, value)
 
-        println("Server received:", string(data))
+        fmt.Printf("Server received: %s", string(data))
         _, err = c.Write(data)
         if err != nil {
             log.Fatal(err)
@@ -41,18 +41,19 @@ func echoServer(c net.Conn) {
 func parseRequest(message string) (instruct, key, value string) {
     msgSplit := strings.Split(message, " ")
 
+    if len(msgSplit) == 0 {
+        return
+    }
+
     instruct = strings.TrimSpace(msgSplit[0])
+
+    if len (msgSplit) == 1 {
+        return
+    }
+
     key = strings.TrimSpace(msgSplit[1])
 
-    // switch len(msgSplit) {
-    //     case 1: key, value := "none", "none"
-    //     case 2: value := "none"
-    //     case 3: 
-    //     default: 
-    // }
-    
-    if len(msgSplit) <= 2 {
-        value = "none"
+    if len(msgSplit) == 2 {
         return
     }
 
@@ -80,7 +81,11 @@ func get(key string, dictionary cacheData) (value string) {
 
     value = dictionary[getKey]
 
-    fmt.Printf("Printing value: %s\n", value)
+    if value == "" {
+        println("Printing value: NONE", )
+    } else {
+        fmt.Printf("Printing value: %s\n", value)
+    }
 
     // RETURN DATA TO THE CLIENT
     return
