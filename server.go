@@ -69,7 +69,7 @@ func talkToDictionary(instruct, key string, dictionary cacheData, optionalValue.
     switch instruct {
         case "GET": get(key, dictionary)
         case "PUT": put(key, value, dictionary)
-        case "SAVE": save(key, value, instruct, dictionary)
+        //case "SAVE": save(key, value, instruct, dictionary)
         default: fmt.Println("try again idiot")
     }
 
@@ -77,9 +77,8 @@ func talkToDictionary(instruct, key string, dictionary cacheData, optionalValue.
 }
 
 func get(key string, dictionary cacheData) (value string) {
-    getKey := key
 
-    value = dictionary[getKey]
+    value = dictionary[key]
 
     if value == "" {
         println("Printing value: NONE", )
@@ -92,12 +91,11 @@ func get(key string, dictionary cacheData) (value string) {
 }
 
 func put(key, value string, dictionary cacheData) {
-    
-    putKey := key
-    putValue := value
 
-    dictionary[putKey] = putValue
+    dictionary[key] = value
     fmt.Println(dictionary)
+
+    // ADD IF STATEMENT TO NOT OVERWRITE - NEW FUNCTION UPDATE WILL DO THAT
 
 }
 
@@ -113,13 +111,13 @@ func save(key, value, instruct string, dictionary cacheData) {
     
     defer fo.Close()
 
-    //_, err = fo.Write(dictionary)
+    // _, err = fo.Write(dictionary)
 
     // WRITE TO DATABASE END
 }
 
 func main() {
-    l, err := net.Listen("tcp", ":4127")
+    l, err := net.Listen("tcp", ":4127") // sets a listener, l, to port 4127
     if err != nil {
         log.Fatal(err)
         return
