@@ -17,10 +17,16 @@ import (
 type dictionary map[string]string
 var cacheData = dictionary {} // Declare global variable so not to overwrite
 
-func echoServer(c net.Conn) (data []byte) {
+// var connection net.Conn getting error but could try setting this as a global
+
+const (
+    PORT = ":4127"
+)
+
+func echoServer(connection net.Conn) (data []byte) {
     for {
         buf := make([]byte, 512) // makes a buffer to keep chunks that are read/written
-        inputEnd, err := c.Read(buf) // COMMENT THIS BETTER
+        inputEnd, err := connection.Read(buf) // COMMENT THIS BETTER
         if err == io.EOF {
             return
         }
@@ -28,27 +34,25 @@ func echoServer(c net.Conn) (data []byte) {
         data = buf[0:inputEnd]
 
         message := string(data)
-        instruct, key, value := parseRequest(message)
+        instruction, key, value := parseRequest(message) // how to take these out of the function?
 
-        talkToDictionary(c, instruct, key, value)
+        talkToDictionary(connection, instruction, key, value) // how to take these out of the function?
 
         fmt.Printf("Server received: %s", string(data))
-        // _, err = c.Write(data) // this writes things for the client
-        // if err != nil {
-        //     log.Fatal(err)
-        // }       
+
     }
+
     return
 }
 
-func parseRequest(message string) (instruct, key, value string) {
+func parseRequest(message string) (instruction, key, value string) {
     msgSplit := strings.Split(message, " ")
 
     if len(msgSplit) == 0 {
         return
     }
 
-    instruct = strings.TrimSpace(msgSplit[0])
+    instruction = strings.TrimSpace(msgSplit[0])
 
     if len (msgSplit) == 1 {
         return
@@ -65,31 +69,31 @@ func parseRequest(message string) (instruct, key, value string) {
     return
 }
 
-func talkToDictionary(c net.Conn, instruct, key string, optionalValue...string) {
+func talkToDictionary(connection net.Conn, instruct, key string, optionalValue...string) {
 
     value := strings.Join(optionalValue[:], " ")
 
     switch instruct {
-        case "GET": get(c, key)
-        case "PUT": put(c, key, value)
+        case "GET": get(connection, key)
+        case "PUT": put(connection, key, value)
         //case "SAVE": save(key, value, instruct, dictionary)
         default: fmt.Println("try again idiot")
     }
 
 }
 
-func get(c net.Conn, key string) (value string) {
+func get(connection net.Conn, key string) (value string) {
 
     value = cacheData[key]
     
     //fmt.Printf("Printing value: %s\n", value)
     byteValue := []byte(value)
-    c.Write(byteValue) // sends the value back over to the client
+    connection.Write(byteValue) // sends the value back over to the client
 
     return
 }
 
-func put(c net.Conn, key, value string) {
+func put(connection net.Conn, key, value string) {
 
     // make clear for which dictionary for when multiple clients are dealing with different cache
 
@@ -108,7 +112,7 @@ func save(key, value, instruct string) {
     
     // WRITE TO DATABASE
 
-    fo, err := os.OpenFile("outputs/output", os.O_RDWR|os.O_APPEND, 0666)
+    fo, err := os.OpenFile("outputs/output", os.O_RDWR|os.O_APPEND, 0666) // open file outside of this function
     fo.Seek(0,2) // 2 means go to the end of the file, 0 is the relative position to the end
     if err != nil {
         log.Fatal(err)
@@ -122,20 +126,19 @@ func save(key, value, instruct string) {
 }
 
 func main() {
-    // make the port a constant / have client define the port
-    l, err := net.Listen("tcp", ":4127") // sets a listener, l, to port 4127
+    listener, err := net.Listen("tcp", PORT)
     if err != nil {
         log.Fatal(err)
         return
     }
 
     for {
-        fd, err := l.Accept()
+        conn, err := listener.Accept()
         if err != nil {
             log.Fatal(err)
             return
         }
 
-        go echoServer(fd)
+        go echoServer(conn)
     }
 }
