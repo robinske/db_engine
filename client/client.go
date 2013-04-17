@@ -1,6 +1,6 @@
 // CLIENT DIALS / WRITES
 
-package main
+package client
 
 import (
     "net"

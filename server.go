@@ -12,13 +12,7 @@ import (
     "fmt"
 )
 
-type Object struct {
-    Dictionary map[string]string
-}
-
-func (o *Object) Value() string {
-    return o.Dictionary[key]
-}
+// MAKE SURE EACH FUNCTION ONLY DOES ONE THING
 
 type cacheData map[string]string
 var dictionary = cacheData {} // Declare global variable so not to overwrite
@@ -26,7 +20,7 @@ var dictionary = cacheData {} // Declare global variable so not to overwrite
 func echoServer(c net.Conn) {
     for {
         buf := make([]byte, 512) // makes a buffer to keep chunks that are read/written
-        nr, err := c.Read(buf)
+        nr, err := c.Read(buf) // COMMENT THIS BETTER
         if err == io.EOF {
             return
         }
@@ -97,8 +91,12 @@ func get(c net.Conn, key string, dictionary cacheData) (value string) {
 
 func put(c net.Conn, key, value string, dictionary cacheData) {
 
+    // TRY THIS WITHOUT PASSING IN dictionary
+    // make clear for which dictionary for when multiple clients are dealing with different cache
+
     dictionary[key] = value
     fmt.Println(dictionary)
+    // Give the client confirmation that this worked
 
     // ONCE THE DICTIONARY IS STRING/JSON - SEND IT OVER
     // byteDict := []byte(dictionary)
@@ -125,6 +123,7 @@ func save(key, value, instruct string, dictionary cacheData) {
 }
 
 func main() {
+    // make the port a constant / have client define the port
     l, err := net.Listen("tcp", ":4127") // sets a listener, l, to port 4127
     if err != nil {
         log.Fatal(err)
