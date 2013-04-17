@@ -12,31 +12,30 @@ import (
     "fmt"
 )
 
-func reader(r io.Reader) {
+func reader(reader io.Reader) {
     buf := make([]byte, 1024)
     for {
-        n, err := r.Read(buf[:]) // calls the read method on io reader variable r, sets instance to n
+        inputEnd, err := reader.Read(buf[:]) // calls the read method on io reader variable r, sets instance to n
         if err != nil {
           return
         }
-        fmt.Printf("Value: %s\n", string(buf[0:n])) // how to make this dynamic based on input?
+        fmt.Printf("Value: %s\n", string(buf[0:inputE])) // how to make this dynamic based on input?
         // can do println to add a buffer space between inputs
     }
 }
 
-func main() {
-    c, err := net.Dial("tcp", ":4127") // sets a connection, c, to the port 4127
+func Connect() {
+    connection, err := net.Dial("tcp", ":4127") // sets a connection, c, to the port 4127
     if err != nil {
         log.Fatal(err)
     }
 
-    defer c.Close()
+    defer connection.Close()
 
-    go reader(c) // concurrent process / Goroutine
+    go reader(connection)
     
     for {
         input := bufio.NewReader(os.Stdin)
-        // arbitrary input from another go program. of some kind.
 
         // rolodex of hackbright students
         // want this program to be able to save this information to the database
@@ -50,7 +49,7 @@ func main() {
         }
 
         if message != "" {
-            _,err := c.Write([]byte(message))
+            _,err := connection.Write([]byte(message))
 
             if err != nil {
               log.Fatal(err)

@@ -14,30 +14,31 @@ import (
 
 // MAKE SURE EACH FUNCTION ONLY DOES ONE THING
 
-type cacheData map[string]string
-var dictionary = cacheData {} // Declare global variable so not to overwrite
+type dictionary map[string]string
+var cacheData = dictionary {} // Declare global variable so not to overwrite
 
-func echoServer(c net.Conn) {
+func echoServer(c net.Conn) (data []byte) {
     for {
         buf := make([]byte, 512) // makes a buffer to keep chunks that are read/written
-        nr, err := c.Read(buf) // COMMENT THIS BETTER
+        inputEnd, err := c.Read(buf) // COMMENT THIS BETTER
         if err == io.EOF {
             return
         }
 
-        data := buf[0:nr]
+        data = buf[0:inputEnd]
 
         message := string(data)
         instruct, key, value := parseRequest(message)
 
-        talkToDictionary(c, instruct, key, dictionary, value)
+        talkToDictionary(c, instruct, key, value)
 
         fmt.Printf("Server received: %s", string(data))
         // _, err = c.Write(data) // this writes things for the client
         // if err != nil {
         //     log.Fatal(err)
-        // }
+        // }       
     }
+    return
 }
 
 func parseRequest(message string) (instruct, key, value string) {
@@ -64,23 +65,22 @@ func parseRequest(message string) (instruct, key, value string) {
     return
 }
 
-func talkToDictionary(c net.Conn, instruct, key string, dictionary cacheData, optionalValue...string) (cacheData) {
+func talkToDictionary(c net.Conn, instruct, key string, optionalValue...string) {
 
     value := strings.Join(optionalValue[:], " ")
 
     switch instruct {
-        case "GET": get(c, key, dictionary)
-        case "PUT": put(c, key, value, dictionary)
+        case "GET": get(c, key)
+        case "PUT": put(c, key, value)
         //case "SAVE": save(key, value, instruct, dictionary)
         default: fmt.Println("try again idiot")
     }
 
-    return dictionary
 }
 
-func get(c net.Conn, key string, dictionary cacheData) (value string) {
+func get(c net.Conn, key string) (value string) {
 
-    value = dictionary[key]
+    value = cacheData[key]
     
     //fmt.Printf("Printing value: %s\n", value)
     byteValue := []byte(value)
@@ -89,13 +89,12 @@ func get(c net.Conn, key string, dictionary cacheData) (value string) {
     return
 }
 
-func put(c net.Conn, key, value string, dictionary cacheData) {
+func put(c net.Conn, key, value string) {
 
-    // TRY THIS WITHOUT PASSING IN dictionary
     // make clear for which dictionary for when multiple clients are dealing with different cache
 
-    dictionary[key] = value
-    fmt.Println(dictionary)
+    cacheData[key] = value
+    fmt.Println(cacheData)
     // Give the client confirmation that this worked
 
     // ONCE THE DICTIONARY IS STRING/JSON - SEND IT OVER
@@ -105,7 +104,7 @@ func put(c net.Conn, key, value string, dictionary cacheData) {
     // ADD IF STATEMENT TO NOT OVERWRITE - NEW FUNCTION UPDATE WILL DO THAT
 }
 
-func save(key, value, instruct string, dictionary cacheData) {
+func save(key, value, instruct string) {
     
     // WRITE TO DATABASE
 
