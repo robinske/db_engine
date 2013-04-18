@@ -1,46 +1,51 @@
 package main
 
 import (
-	"os"
-	"io"
+	"io/ioutil"
 	"db_engine/client"
 	"log"
-	"bufio"
-	"strings"
+	"encoding/json"
+	"fmt"
+	//"github.com/likexian/simplejson"
+	//"https://github.com/jmoiron/jsonq"
 )
 
+type JSON map[string]interface{}
+type dictionary map[string]string
+var flattened = dictionary {}
 
-func readFile(file string) string {
-    fo, err := os.OpenFile(file, os.O_RDWR, 0666)
-    if err != nil {
-        log.Fatal(err)
-    }
-    
-    defer fo.Close()
+func check(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
-	r := bufio.NewReader(fo)
+func decodeJSON(encodedJSON []byte) {
 
-	lineList := []string{}
+	u := map[string]interface{} {}
+	err := json.Unmarshal(encodedJSON, &u)
+	check(err)
 
-	for {
-		l, _, err := r.ReadLine()
-		if err == io.EOF {
-			break
-		}
-		s := string(l)
+	keys := []string{}
 
-		lineList = append(lineList, s)
+	for k := range u {
+		keys = append(keys, k)
+		fmt.Printf("%v: %v\n", k, u[k])
 	}
 
-	s := strings.Join(lineList, ";")
+	fmt.Println(keys)
+	fmt.Printf("Value of key: %v\n", u["batters"])
 
-	return s
 }
 
 
 func main() {
 	
-	fileText := readFile("working/students.txt")
-	client.Connect(fileText)
+	fileContents, err := ioutil.ReadFile("working/example.json")
+	check(err)
+	
+	decodeJSON(fileContents)
+	
+	client.Connect(fileContents)
 
 }
