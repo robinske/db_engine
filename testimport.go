@@ -20,22 +20,13 @@ func check(err error) {
 	}
 }
 
-func decodeJSON(encodedJSON []byte) {
+func decodeJSON(encodedJSON []byte) JSON {
 
-	u := map[string]interface{} {}
-	err := json.Unmarshal(encodedJSON, &u)
+	decoded := map[string]interface{} {}
+	err := json.Unmarshal(encodedJSON, &decoded)
 	check(err)
 
-	keys := []string{}
-
-	for k := range u {
-		keys = append(keys, k)
-		fmt.Printf("%v: %v\n", k, u[k])
-	}
-
-	fmt.Println(keys)
-	fmt.Printf("Value of key: %v\n", u["batters"])
-
+	return decoded
 }
 
 
@@ -44,7 +35,17 @@ func main() {
 	fileContents, err := ioutil.ReadFile("working/example.json")
 	check(err)
 	
-	decodeJSON(fileContents)
+	decoded := decodeJSON(fileContents)
+
+	keys := []string{}
+
+	for k := range decoded {
+		keys = append(keys, k)
+		fmt.Printf("%v: %v\n", k, decoded[k])
+	}
+
+	//fmt.Println(keys)
+	//fmt.Printf("Value of key: %v\n", decoded["batters"])
 	
 	client.Connect(fileContents)
 

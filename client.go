@@ -19,7 +19,7 @@ func reader(reader io.Reader) {
         if err != nil {
           return
         }
-        fmt.Printf("Value: %s\n", string(buf[0:inputEnd])) // how to make this dynamic based on input?
+        fmt.Printf("%s\n", string(buf[0:inputEnd])) // how to make this dynamic based on input?
         // can do println to add a buffer space between inputs
     }
 }

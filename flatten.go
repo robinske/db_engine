@@ -35,7 +35,12 @@ func flatten(dictionary Dict, parentKey string) Dict {
 
 func main() {
 
-	var d = Dict {"key": "value"}
+	var d = Dict {}
+
+	d["ay"] = "1"
+	d["cey"] = d["ay"]
+
+{"ay": "1", "cey": {"ay": "2", "b": {"x": "5", "y": : "10"}}, "d": "[1, 2, 3]"}
 
 	flatten(d)
 

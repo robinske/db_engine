@@ -7,18 +7,20 @@ import (
     "net"
     "log"
     "io"
+    "io/ioutil"
     "os"
     "strings"
     "fmt"
+    "encoding/json"
+    // "db_engine/client"
 )
 
 // MAKE SURE EACH FUNCTION ONLY DOES ONE THING
 
 type dictionary map[string]string
-type netConn net.Conn
+type JSON map[string]interface{}
 
 var cacheData = dictionary {} // Declare global variable so not to overwrite
-//var connection = netConn {}
 
 // var connection net.Conn getting error but could try setting this as a global
 
@@ -80,6 +82,11 @@ func callCacheData(connection net.Conn, instruct, key string, optionalValue...st
     switch instruct {
         case "GET": get(connection, key)
         case "PUT": put(connection, key, value)
+        case "LOAD": {
+            filename := key
+            load(connection, filename)
+        }
+        case "SHOW": show(connection, key)
         //case "SAVE": save(key, value, instruct, dictionary)
         default: fmt.Println("try again idiot")
     }
@@ -87,22 +94,18 @@ func callCacheData(connection net.Conn, instruct, key string, optionalValue...st
 
 func get(connection net.Conn, key string) (value string) {
 
-    value = cacheData[key]
+    //value = cacheData[key]
 
 // CHECK IF KEY IS IN DICTIONARY
 
-    // dict := map[string]int {"foo" : 1, "bar" : 2}
-    // value, ok := dict["baz"]
-    // if ok {
-    //         fmt.Println("value: ", value)
-    // } else {
-    //         fmt.Println("key not found")
-    // }
-    
-    byteValue := []byte(value)
-    connection.Write(byteValue) // sends the value back over to the client
-
-    return
+    value, ok := cacheData[key]
+    if ok {
+            byteValue := []byte(value)
+            connection.Write(byteValue) // sends the value back over to the client
+    } else {
+            connection.Write([]byte("key not found"))
+    }
+    return   
 }
 
 func put(connection net.Conn, key, value string) {
@@ -111,20 +114,55 @@ func put(connection net.Conn, key, value string) {
 
     cacheData[key] = value
     fmt.Println(cacheData)
+    msg := "Added "+key+":"+value
+    connection.Write([]byte(msg))
     // Give the client confirmation that this worked
-
-    // ONCE THE DICTIONARY IS STRING/JSON - SEND IT OVER
-    // byteDict := []byte(dictionary)
-    // c.Write(byteDict)
 
     // ADD IF STATEMENT TO NOT OVERWRITE - NEW FUNCTION UPDATE WILL DO THAT
 }
 
-func show(connection net.Conn) {
+func load(connection net.Conn, filename string) {
+    fileContents, err := ioutil.ReadFile(filename)
+    if err != nil {
+        log.Fatal(err)
+    }
+    mappedJSON := decodeJSON(fileContents)
+    for k,v := range mappedJSON {                   // RIGHT HERE IS WHERE THERE ARE ISSUES. 
+        k = strings.ToUpper(k)
+        v = strings.ToUpper(v.(string))             // NEED TO EITHER DO A RECURSIVE SWITCH OR
+                                                    // FLATTEN THE KEYS
+        cacheData[k] = v.(string)
+    }
+    fmt.Printf("%v", mappedJSON)
+}
 
+func decodeJSON(encodedJSON []byte) JSON {
+
+    decoded := map[string]interface{} {}
+    err := json.Unmarshal(encodedJSON, &decoded)
+    if err != nil {
+        log.Fatal(err)
+    }
+    return decoded
+}
+
+func show(connection net.Conn, key string) {
+    fmt.Println(cacheData)
     // show things in database
     // i.e. "show keys"
+    switch key {
+        case "KEYS": {
+            keys := []string{}
+            for k := range cacheData {
+                keys = append(keys, k)
+                fmt.Printf("%v\n", k)
+            }
+            keystring := strings.Join(keys, ", ")
+            connection.Write([]byte(keystring))
+        }
+        default: connection.Write([]byte("Invalid request"))
 
+    }
 }
 
 func openDisk() {
