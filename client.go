@@ -12,20 +12,23 @@ import (
     "fmt"
 )
 
+const (
+    PORT = ":4127"
+)
+
 func reader(reader io.Reader) {
     buf := make([]byte, 1024)
     for {
-        inputEnd, err := reader.Read(buf[:]) // calls the read method on io reader variable r, sets instance to n
+        inputEnd, err := reader.Read(buf[:])
         if err != nil {
           return
         }
-        fmt.Printf("%s\n", string(buf[0:inputEnd])) // how to make this dynamic based on input?
-        // can do println to add a buffer space between inputs
+        fmt.Printf("%s\n", string(buf[0:inputEnd]))
     }
 }
 
 func main() {
-    connection, err := net.Dial("tcp", ":4127") // sets a connection, c, to the port 4127
+    connection, err := net.Dial("tcp", PORT) 
     if err != nil {
         log.Fatal(err)
     }
@@ -36,21 +39,15 @@ func main() {
     
     for {
         input := bufio.NewReader(os.Stdin)
-
-        // rolodex of hackbright students
-        // want this program to be able to save this information to the database
-        // how to send information between two 
-
-        rawMessage, err := input.ReadString('\n') // message resets with each new input
-        message := strings.ToUpper(rawMessage) // capitalize/normalize input
-
+        rawMessage, err := input.ReadString('\n')
         if err != nil {
           log.Fatal(err)
         }
 
+        message := strings.ToUpper(rawMessage)          // normalize input
+
         if message != "" {
             _,err := connection.Write([]byte(message))
-
             if err != nil {
               log.Fatal(err)
               break

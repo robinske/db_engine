@@ -12,23 +12,35 @@ import (
     "strings"
     "fmt"
     "encoding/json"
+    // "sync"
     // "db_engine/client"
 )
 
 // MAKE SURE EACH FUNCTION ONLY DOES ONE THING
 
-type dictionary map[string]string
+// add a shut down function that stops the server without ctrl -c
+// this should write the whole dictionary to disk
+// on start up, load up the dictionary back into memory
+// second file that's always open - records all of the instructions that would change the database
+// once every X updates, write dictionary to disk and reset the log
+
+type Dictionary map[string]string
+type Collection map[string]map[string]string
 type JSON map[string]interface{}
 
-var cacheData = dictionary {} // Declare global variable so not to overwrite
+// var locker = struct{
+//     sync.RWMutex
+//     cacheData map[string]int
+// }{cacheData := make(map[string]int)}
 
-// var connection net.Conn getting error but could try setting this as a global
+var cacheData = Dictionary {} // Declare global variable so not to overwrite - HOW TO IMPLEMENT THIS FOR MULTIPLE DICTIONARIES/COLLECTIONS?
+var queue []byte // what will be written to disk
 
 const (
     PORT = ":4127"
 )
 
-func echoServer(connection net.Conn) (data []byte) {
+func echoServer(connection net.Conn) {      // this function does too many things. need to separate it
     for {
         buf := make([]byte, 10000) // make buffer size infinite/flexible based on data input?
         inputEnd, err := connection.Read(buf)
@@ -36,104 +48,128 @@ func echoServer(connection net.Conn) (data []byte) {
             return
         }
 
-        data = buf[0:inputEnd]
-
+        data := buf[0:inputEnd]
         message := string(data)
+        instruction, key, value := parseRequest(message) 
 
-        instruction, key, value := parseRequest(message) // how to take these out of the function?
-
-        callCacheData(connection, instruction, key, value) // how to take these out of the function?
+        callCacheData(connection, instruction, key, value)
 
         fmt.Printf("Server received: %s", message)
     }
-
-    return
 }
 
 func parseRequest(message string) (instruction, key, value string) {
     
     msgSplit := strings.Split(message, " ")
-
-    if len(msgSplit) == 0 {
-        return
-    }
-
+    
+    if len(msgSplit) == 0 { return }
     instruction = strings.TrimSpace(msgSplit[0])
 
-    if len (msgSplit) == 1 {
-        return
-    }
-
+    if len(msgSplit) == 1 { return }
     key = strings.TrimSpace(msgSplit[1])
 
-    if len(msgSplit) == 2 {
-        return
-    }
-
+    if len(msgSplit) == 2 { return }
     value = strings.TrimSpace(strings.Join(msgSplit[2:], " "))
 
     return
 }
 
-func callCacheData(connection net.Conn, instruct, key string, optionalValue...string) {
+func callCacheData(connection net.Conn, instruction, key string, optionalValue...string) {
 
     value := strings.Join(optionalValue[:], " ")
 
-    switch instruct {
+    // keyExists := check(key)
+    // TEST FOR KEY EXISTENCE HERE, call functions differently based on value?
+
+    switch instruction {
+        case "CREATE": {
+            var key = Collection {}
+            collection := key
+            fmt.Println(collection)
+            create(connection, collection)
+        }
         case "GET": get(connection, key)
-        case "PUT": put(connection, key, value)
+        case "SET": set(connection, key, value)
+        case "UPDATE":  update(connection, key, value)
         case "LOAD": {
             filename := key
             load(connection, filename)
         }
         case "SHOW": show(connection, key)
-        //case "SAVE": save(key, value, instruct, dictionary)
-        default: fmt.Println("try again idiot")
+        case "REMOVE": remove(connection, key)
+        default: connection.Write([]byte("Instruction not recognized"))
     }
+}
+
+func trackCollections() {
+}
+
+func check(key string) (exists bool) {
+    // value, ok := cacheData[key]         // check if key is valid
+    // if ok {
+    //         byteValue := []byte(value)
+    //         connection.Write(byteValue)
+    // } else {
+    //         connection.Write([]byte("key not found"))
+    // }
+    return
+}
+
+func create(connection net.Conn, collection Collection) {
+    // prefix 
+
 }
 
 func get(connection net.Conn, key string) (value string) {
 
-    //value = cacheData[key]
-
-// CHECK IF KEY IS IN DICTIONARY
-
-    value, ok := cacheData[key]
+    value, ok := cacheData[key]         // check if key is valid
     if ok {
             byteValue := []byte(value)
-            connection.Write(byteValue) // sends the value back over to the client
+            connection.Write(byteValue)
     } else {
             connection.Write([]byte("key not found"))
     }
-    return   
+    return  
 }
 
-func put(connection net.Conn, key, value string) {
+func set(connection net.Conn, key, value string) {
 
     // make clear for which dictionary for when multiple clients are dealing with different cache
-
-    cacheData[key] = value
-    fmt.Println(cacheData)
-    msg := "Added "+key+":"+value
-    connection.Write([]byte(msg))
-    // Give the client confirmation that this worked
-
     // ADD IF STATEMENT TO NOT OVERWRITE - NEW FUNCTION UPDATE WILL DO THAT
+    _, ok := cacheData[key]         // check if key is valid
+    if ok {
+        connection.Write([]byte(key+" already added. To modify, UPDATE key"))
+    } else {
+        cacheData[key] = value      
+        connection.Write([]byte("Added "+key+":"+value))
+    }
+}
+
+func update(connection net.Conn, key, value string) {
+    
+    _, ok := cacheData[key]         // check if key is valid
+    if ok {
+        cacheData[key] = value      // overwrite
+        connection.Write([]byte("Updated "+key+":"+value))
+    } else {
+        connection.Write([]byte(key+" not yet added. Please set"))
+    }
 }
 
 func load(connection net.Conn, filename string) {
+    // ERROR HANDLE FILE NOT RECOGNIZED
     fileContents, err := ioutil.ReadFile(filename)
+    connection.Write([]byte("Loaded "+filename+" to collection X"))
     if err != nil {
         log.Fatal(err)
     }
     mappedJSON := decodeJSON(fileContents)
     for k,v := range mappedJSON {                   // RIGHT HERE IS WHERE THERE ARE ISSUES. 
         k = strings.ToUpper(k)
-        v = strings.ToUpper(v.(string))             // NEED TO EITHER DO A RECURSIVE SWITCH OR
+        v = strings.ToUpper(v.(interface{}))             // NEED TO EITHER DO A RECURSIVE SWITCH OR
                                                     // FLATTEN THE KEYS
         cacheData[k] = v.(string)
     }
-    fmt.Printf("%v", mappedJSON)
 }
 
 func decodeJSON(encodedJSON []byte) JSON {
@@ -147,7 +183,7 @@ func decodeJSON(encodedJSON []byte) JSON {
 }
 
 func show(connection net.Conn, key string) {
-    fmt.Println(cacheData)
+    // fmt.Println(cacheData)
     // show things in database
     // i.e. "show keys"
     switch key {
@@ -155,31 +191,56 @@ func show(connection net.Conn, key string) {
             keys := []string{}
             for k := range cacheData {
                 keys = append(keys, k)
-                fmt.Printf("%v\n", k)
             }
-            keystring := strings.Join(keys, ", ")
-            connection.Write([]byte(keystring))
+            connection.Write([]byte(strings.Join(keys, ", ")))
+        }
+        // case "VALUES": {
+        //     for k, v := range cacheData {
+        //         connection.Write([]byte("Key: "+k+", Value: "+v))
+        //     }
+        //     connection.Write([]byte(strings.Join(keys, ", ")))
+        // }
+        case "COLLECTIONS": {
+            // SHOW THE DIFFERENT DICTIONARIES IN CACHE
         }
         default: connection.Write([]byte("Invalid request"))
 
     }
 }
 
-func openDisk() {
-    END := 2
-    fo, err := os.OpenFile("outputs/output", os.O_RDWR|os.O_APPEND, 0666) // open file outside of this function
+func remove(connection net.Conn, key string) {
+    
+    _, ok := cacheData[key]         // check if key is valid
+    if ok {
+        delete(cacheData, key)
+        connection.Write([]byte(key+" has been removed"))
+    } else {
+        connection.Write([]byte("No key: "+key))
+    }  
+}
+
+func openDisk() *os.File {
+    disk, err := os.OpenFile("outputs/output", os.O_RDWR|os.O_APPEND, 0666) // open file outside of this function
     if err != nil {
         log.Fatal(err)
     }
-    fo.Seek(0,END) // 2 means go to the end of the file, 0 is the relative position to the end
-    defer fo.Close()
-
-    // _, err = fo.Write(dictionary)
-
+   
+    defer disk.Close()
+    return disk
 }
 
-func save(key, value, instruct string) {
+// func queueWrites() {
+//     // use some global variable byte string to queue up stuff
+//     // update the byte string with things to save
+// }
 
+func save(disk *os.File) {
+    END := 2
+    disk.Seek(0,END)
+    _, err := disk.Write(queue)
+        if err != nil {
+        log.Fatal(err)
+    }
 }
 
 func main() {
@@ -197,5 +258,7 @@ func main() {
         }
 
         go echoServer(conn)
+        // disk := openDisk()
+        // go save(disk)
     }
 }
