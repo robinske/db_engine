@@ -13,16 +13,11 @@ import (
     "fmt"
     "encoding/json"
     // "sync"
-    // "db_engine/client"
 )
 
 // MAKE SURE EACH FUNCTION ONLY DOES ONE THING
 
-// add a shut down function that stops the server without ctrl -c
-// this should write the whole dictionary to disk
-// on start up, load up the dictionary back into memory
-// second file that's always open - records all of the instructions that would change the database
-// once every X updates, write dictionary to disk and reset the log
+
 
 type Dictionary map[string]string
 type Collection map[string]map[string]string
@@ -96,6 +91,7 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
             load(connection, filename)
         }
         case "SHOW": show(connection, key)
+        case "QUIT": quit(connection)
         case "REMOVE": remove(connection, key)
         default: connection.Write([]byte("Instruction not recognized"))
     }
@@ -115,6 +111,11 @@ func check(key string) (exists bool) {
     return
 }
 
+func quit(connection net.Conn) {
+    // write entire dictionary to disk here
+    connection.Write([]byte("Connection has been terminated"))
+    connection.Close()
+}
 func create(connection net.Conn, collection Collection) {
     // prefix 
 
@@ -166,7 +167,7 @@ func load(connection net.Conn, filename string) {
     mappedJSON := decodeJSON(fileContents)
     for k,v := range mappedJSON {                   // RIGHT HERE IS WHERE THERE ARE ISSUES. 
         k = strings.ToUpper(k)
-        v = strings.ToUpper(v.(interface{}))             // NEED TO EITHER DO A RECURSIVE SWITCH OR
+        v = strings.ToUpper(v.(string))             // NEED TO EITHER DO A RECURSIVE SWITCH OR
                                                     // FLATTEN THE KEYS
         cacheData[k] = v.(string)
     }

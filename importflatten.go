@@ -16,19 +16,22 @@ var lkey = ""
 
 var flattenedJSON = Dictionary {}
 
-func flatten(inputJSON JSON, lkey string) JSON {
+func flatten(inputJSON JSON, lkey string, flattened *map[string]string) {
 	for rkey, value := range inputJSON {
 		key := lkey+rkey
-		if _, ok := value.(map[string]string); ok {
-			flattenedJSON[key] = value.(string)
+		if _, ok := value.(string); ok {
+			(*flattened)[key] = value.(string)
 		} else {
-			flattened := flatten(inputJSON, lkey+"_")
-			for key, value := range flattened {
-				flattenedJSON[key] = value.(string)
-			}
+			flatten(value.(map[string]interface{}), key+string(0), flattened)
+			// 0 won't print anything but does contain a byte
+			// maybe for testing use a unicode character
+
+			
+			// for key, value := range flattened {
+			// 	flattenedJSON[key] = value.(string)
+			// }
 		}
 	}
-	return flattened
 }
 
 func load(filename string) {
@@ -38,7 +41,10 @@ func load(filename string) {
     }
 
     mappedJSON := decodeJSON(fileContents)
-    flatten(mappedJSON, lkey)
+    var flattened = make(map[string]string)
+    flatten(mappedJSON, lkey, &flattened)
+
+    fmt.Println(flattened)
 
 }
 
@@ -54,5 +60,5 @@ func decodeJSON(encodedJSON []byte) JSON {
 
 func main() {
 	load("working/ex3.json")
-	fmt.Println(flattenedJSON)
+	
 }
