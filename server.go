@@ -17,7 +17,9 @@ import (
 
 // MAKE SURE EACH FUNCTION ONLY DOES ONE THING
 
+keep a map of collection names to structs
 
+struct would have the map, the channel/lock
 
 type Dictionary map[string]string
 type Collection map[string]map[string]string
@@ -27,6 +29,10 @@ type JSON map[string]interface{}
 //     sync.RWMutex
 //     cacheData map[string]int
 // }{cacheData := make(map[string]int)}
+
+// other locking options : have a conducter that's responsible for managing
+
+
 
 var cacheData = Dictionary {} // Declare global variable so not to overwrite - HOW TO IMPLEMENT THIS FOR MULTIPLE DICTIONARIES/COLLECTIONS?
 var queue []byte // what will be written to disk
