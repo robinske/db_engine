@@ -12,14 +12,15 @@ import (
     "strings"
     "fmt"
     "encoding/json"
+    "strconv"
     // "sync"
 )
 
 // MAKE SURE EACH FUNCTION ONLY DOES ONE THING
 
-keep a map of collection names to structs
+// keep a map of collection names to structs
 
-struct would have the map, the channel/lock
+// struct would have the map, the channel/lock
 
 type Dictionary map[string]string
 type Collection map[string]map[string]string
@@ -31,11 +32,14 @@ type JSON map[string]interface{}
 // }{cacheData := make(map[string]int)}
 
 // other locking options : have a conducter that's responsible for managing
+// have a single goroutine that's responsible for applying changes ot the database
+// only one channel to send the mutations -- will manage a queue of requests
 
 
 
 var cacheData = Dictionary {} // Declare global variable so not to overwrite - HOW TO IMPLEMENT THIS FOR MULTIPLE DICTIONARIES/COLLECTIONS?
 var queue []byte // what will be written to disk
+var lkey = ""
 
 const (
     PORT = ":4127"
@@ -61,16 +65,16 @@ func echoServer(connection net.Conn) {      // this function does too many thing
 
 func parseRequest(message string) (instruction, key, value string) {
     
-    msgSplit := strings.Split(message, " ")
+    msgSplit := strings.Fields(message)
     
     if len(msgSplit) == 0 { return }
-    instruction = strings.TrimSpace(msgSplit[0])
+    instruction = msgSplit[0]
 
     if len(msgSplit) == 1 { return }
-    key = strings.TrimSpace(msgSplit[1])
+    key = msgSplit[1]
 
     if len(msgSplit) == 2 { return }
-    value = strings.TrimSpace(strings.Join(msgSplit[2:], " "))
+    value = strings.Join(msgSplit[2:], " ")
 
     return
 }
@@ -117,10 +121,14 @@ func check(key string) (exists bool) {
     return
 }
 
-func quit(connection net.Conn) {
+func quit(connection net.Conn) bool {
     // write entire dictionary to disk here
     connection.Write([]byte("Connection has been terminated"))
-    connection.Close()
+    err := connection.Close()
+    if err != nil {
+        log.Fatal(err)
+    }
+    return true
 }
 func create(connection net.Conn, collection Collection) {
     // prefix 
@@ -130,6 +138,8 @@ func create(connection net.Conn, collection Collection) {
 func get(connection net.Conn, key string) (value string) {
 
     value, ok := cacheData[key]         // check if key is valid
+    // check if key contains, pull by "contains"
+    // strings.Contains() returns a boolean
     if ok {
             byteValue := []byte(value)
             connection.Write(byteValue)
@@ -142,7 +152,6 @@ func get(connection net.Conn, key string) (value string) {
 func set(connection net.Conn, key, value string) {
 
     // make clear for which dictionary for when multiple clients are dealing with different cache
-    // ADD IF STATEMENT TO NOT OVERWRITE - NEW FUNCTION UPDATE WILL DO THAT
     _, ok := cacheData[key]         // check if key is valid
     if ok {
         connection.Write([]byte(key+" already added. To modify, UPDATE key"))
@@ -166,16 +175,26 @@ func update(connection net.Conn, key, value string) {
 func load(connection net.Conn, filename string) {
     // ERROR HANDLE FILE NOT RECOGNIZED
     fileContents, err := ioutil.ReadFile(filename)
-    connection.Write([]byte("Loaded "+filename+" to collection X"))
     if err != nil {
         log.Fatal(err)
     }
+
+    connection.Write([]byte("Loaded "+filename+" to collection X"))
+
     mappedJSON := decodeJSON(fileContents)
-    for k,v := range mappedJSON {                   // RIGHT HERE IS WHERE THERE ARE ISSUES. 
+    
+    var flattened = make(map[string]string)
+    
+    flatten(mappedJSON, lkey, &flattened)
+    
+    for key, value := range flattened {
+        fmt.Printf("%v:%v\n", key, value)
+    }
+    
+    for k,v := range flattened {
         k = strings.ToUpper(k)
-        v = strings.ToUpper(v.(string))             // NEED TO EITHER DO A RECURSIVE SWITCH OR
-                                                    // FLATTEN THE KEYS
-        cacheData[k] = v.(string)
+        v = strings.ToUpper(v)
+        cacheData[k] = v
     }
 }
 
@@ -187,6 +206,28 @@ func decodeJSON(encodedJSON []byte) JSON {
         log.Fatal(err)
     }
     return decoded
+}
+
+func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[string]string) {
+    for rkey, value := range inputJSON {
+        key := lkey+rkey
+        if _, ok := value.(string); ok {
+            (*flattened)[key] = value.(string)
+        } else if _, ok := value.([]interface{}); ok {
+            for i := 0; i<len(value.([]interface{})); i++ {
+                if _, ok := value.([]string); ok {
+                    stringI := strconv.Itoa(i)
+                    (*flattened)[stringI] = value.(string)
+                    /// think this is wrong
+
+                } else {
+                flatten(value.([]interface{})[i].(map[string]interface{}), key+":"+strconv.Itoa(i)+":", flattened)
+                }
+            }
+        } else {
+            flatten(value.(map[string]interface{}), key+":", flattened)
+        }
+    }
 }
 
 func show(connection net.Conn, key string) {
@@ -217,6 +258,7 @@ func show(connection net.Conn, key string) {
 
 func remove(connection net.Conn, key string) {
     
+    //key = strings.
     _, ok := cacheData[key]         // check if key is valid
     if ok {
         delete(cacheData, key)
@@ -265,6 +307,8 @@ func main() {
         }
 
         go echoServer(conn)
+        
+        // conn.Close()
         // disk := openDisk()
         // go save(disk)
     }
