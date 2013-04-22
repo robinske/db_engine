@@ -16,7 +16,8 @@ import (
     // "sync"
 )
 
-// MAKE SURE EACH FUNCTION ONLY DOES ONE THING
+// MAKE SURE EACH FUNCTION 
+ONLY DOES ONE THING
 
 // keep a map of collection names to structs
 
