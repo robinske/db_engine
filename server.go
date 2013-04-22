@@ -22,7 +22,7 @@ import (
 
 // struct would have the map, the channel/lock
 
-type Dictionary map[string]string
+type Dictionary map[string]interface{}
 type Collection map[string]map[string]string
 type JSON map[string]interface{}
 
@@ -40,9 +40,11 @@ type JSON map[string]interface{}
 var cacheData = Dictionary {} // Declare global variable so not to overwrite - HOW TO IMPLEMENT THIS FOR MULTIPLE DICTIONARIES/COLLECTIONS?
 var queue []byte // what will be written to disk
 var lkey = ""
+var flattened = make(map[string]interface{})
 
 const (
     PORT = ":4127"
+    END = 2
 )
 
 func echoServer(connection net.Conn) {      // this function does too many things. need to separate it
@@ -83,9 +85,6 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
 
     value := strings.Join(optionalValue[:], " ")
 
-    // keyExists := check(key)
-    // TEST FOR KEY EXISTENCE HERE, call functions differently based on value?
-
     switch instruction {
         case "CREATE": {
             var key = Collection {}
@@ -94,6 +93,7 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
             create(connection, collection)
         }
         case "GET": get(connection, key)
+        // case "GETALL": getAll(connection, key)
         case "SET": set(connection, key, value)
         case "UPDATE":  update(connection, key, value)
         case "LOAD": {
@@ -107,20 +107,6 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
     }
 }
 
-func trackCollections() {
-}
-
-func check(key string) (exists bool) {
-    // value, ok := cacheData[key]         // check if key is valid
-    // if ok {
-    //         byteValue := []byte(value)
-    //         connection.Write(byteValue)
-    // } else {
-    //         connection.Write([]byte("key not found"))
-    // }
-    return
-}
-
 func quit(connection net.Conn) bool {
     // write entire dictionary to disk here
     connection.Write([]byte("Connection has been terminated"))
@@ -132,21 +118,30 @@ func quit(connection net.Conn) bool {
 }
 func create(connection net.Conn, collection Collection) {
     // prefix 
-
 }
 
-func get(connection net.Conn, key string) (value string) {
+func get(connection net.Conn, key string) {
 
     value, ok := cacheData[key]         // check if key is valid
-    // check if key contains, pull by "contains"
-    // strings.Contains() returns a boolean
+    values := []string{}
+
     if ok {
-            byteValue := []byte(value)
-            connection.Write(byteValue)
+            connection.Write([]byte(value.(string)))
     } else {
-            connection.Write([]byte("key not found"))
+        for k := range cacheData {      // NO LONGER HASHING, O(N)
+            if strings.Contains(k, key) {
+                v := cacheData[k]
+                values = append(values, v.(string))
+            }
+        }
+        if len(values) == 0 {
+            connection.Write([]byte("No values found"))
+        } else {
+            var val string // output this as a JSON-like key/value list instead?
+            val = strings.Join(values, " ")
+            connection.Write([]byte(val))
+        }
     }
-    return  
 }
 
 func set(connection net.Conn, key, value string) {
@@ -173,33 +168,35 @@ func update(connection net.Conn, key, value string) {
 }
 
 func load(connection net.Conn, filename string) {
-    // ERROR HANDLE FILE NOT RECOGNIZED
     fileContents, err := ioutil.ReadFile(filename)
     if err != nil {
         log.Fatal(err)
     }
 
     connection.Write([]byte("Loaded "+filename+" to collection X"))
-
     mappedJSON := decodeJSON(fileContents)
-    
-    var flattened = make(map[string]string)
-    
+
     flatten(mappedJSON, lkey, &flattened)
-    
+
     for key, value := range flattened {
         fmt.Printf("%v:%v\n", key, value)
     }
     
     for k,v := range flattened {
         k = strings.ToUpper(k)
-        v = strings.ToUpper(v)
-        cacheData[k] = v
+        if _, ok := v.(string); ok {
+            v = strings.ToUpper(v.(string))
+            cacheData[k] = v.(string)
+        } else if _, ok := v.(float64); ok {
+            v = v.(float64)
+            cacheData[k] = v.(float64)
+        } else {
+            connection.Write([]byte("JSON file format error"))
+        }
     }
 }
 
-func decodeJSON(encodedJSON []byte) JSON {
-
+func decodeJSON(encodedJSON []byte) map[string]interface{} {
     decoded := map[string]interface{} {}
     err := json.Unmarshal(encodedJSON, &decoded)
     if err != nil {
@@ -208,20 +205,24 @@ func decodeJSON(encodedJSON []byte) JSON {
     return decoded
 }
 
-func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[string]string) {
+func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[string]interface{}) {
     for rkey, value := range inputJSON {
         key := lkey+rkey
         if _, ok := value.(string); ok {
             (*flattened)[key] = value.(string)
+        } else if _, ok := value.(float64); ok {
+            (*flattened)[key] = value.(float64)
+        } else if _, ok := value.(bool); ok {
+            (*flattened)[key] = value.(bool)
+        } else if _, ok := value.([]float64); ok { // type check for a list of integers not working - is this valid JSON though?
+            (*flattened)[key] = value.([]float64)
         } else if _, ok := value.([]interface{}); ok {
             for i := 0; i<len(value.([]interface{})); i++ {
                 if _, ok := value.([]string); ok {
-                    stringI := strconv.Itoa(i)
-                    (*flattened)[stringI] = value.(string)
-                    /// think this is wrong
-
+                    stringIndex := string(i)
+                    (*flattened)[stringIndex] = value.(string)
                 } else {
-                flatten(value.([]interface{})[i].(map[string]interface{}), key+":"+strconv.Itoa(i)+":", flattened)
+                    flatten(value.([]interface{})[i].(map[string]interface{}), key+":"+strconv.Itoa(i)+":", flattened)
                 }
             }
         } else {
@@ -231,9 +232,6 @@ func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[strin
 }
 
 func show(connection net.Conn, key string) {
-    // fmt.Println(cacheData)
-    // show things in database
-    // i.e. "show keys"
     switch key {
         case "KEYS": {
             keys := []string{}
@@ -242,14 +240,8 @@ func show(connection net.Conn, key string) {
             }
             connection.Write([]byte(strings.Join(keys, ", ")))
         }
-        // case "VALUES": {
-        //     for k, v := range cacheData {
-        //         connection.Write([]byte("Key: "+k+", Value: "+v))
-        //     }
-        //     connection.Write([]byte(strings.Join(keys, ", ")))
-        // }
         case "COLLECTIONS": {
-            // SHOW THE DIFFERENT DICTIONARIES IN CACHE
+            // SHOW THE UNIQUE PREFIXES
         }
         default: connection.Write([]byte("Invalid request"))
 
@@ -257,8 +249,6 @@ func show(connection net.Conn, key string) {
 }
 
 func remove(connection net.Conn, key string) {
-    
-    //key = strings.
     _, ok := cacheData[key]         // check if key is valid
     if ok {
         delete(cacheData, key)
@@ -280,11 +270,11 @@ func openDisk() *os.File {
 
 // func queueWrites() {
 //     // use some global variable byte string to queue up stuff
+//     // CHANNELS???
 //     // update the byte string with things to save
 // }
 
 func save(disk *os.File) {
-    END := 2
     disk.Seek(0,END)
     _, err := disk.Write(queue)
         if err != nil {
@@ -307,9 +297,5 @@ func main() {
         }
 
         go echoServer(conn)
-        
-        // conn.Close()
-        // disk := openDisk()
-        // go save(disk)
     }
 }

@@ -21,13 +21,15 @@ func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[strin
 			(*flattened)[key] = value.(float64)
 		} else if _, ok := value.(bool); ok {
 			(*flattened)[key] = value.(bool)
-		} else if _, ok := value.([]float64); ok { // type check for a list of integers not working - is this valid JSON though?
-			(*flattened)[key] = value.([]float64)
 		} else if _, ok := value.([]interface{}); ok {
 			for i := 0; i<len(value.([]interface{})); i++ {
 				if _, ok := value.([]string); ok {
 					stringI := string(i)
 					(*flattened)[stringI] = value.(string)
+					/// think this is wrong
+				} else if _, ok := value.([]int); ok {
+					stringI := string(i)
+					(*flattened)[stringI] = value.(int)
 				} else {
 					flatten(value.([]interface{})[i].(map[string]interface{}), key+":"+strconv.Itoa(i)+":", flattened)
 				}
@@ -59,7 +61,7 @@ func decodeJSON(encodedJSON []byte) map[string]interface{} {
 }
 
 func main() {
-	mappedJSON := load("working/example.json")
+	mappedJSON := load("working/ex3.json")
 	
 	flatten(mappedJSON, lkey, &flattened)
     for key, value := range flattened {
