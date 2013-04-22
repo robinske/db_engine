@@ -16,8 +16,7 @@ import (
     // "sync"
 )
 
-// MAKE SURE EACH FUNCTION 
-ONLY DOES ONE THING
+// MAKE SURE EACH FUNCTION ONLY DOES ONE THING
 
 // keep a map of collection names to structs
 
@@ -37,11 +36,14 @@ type JSON map[string]interface{}
 // only one channel to send the mutations -- will manage a queue of requests
 
 
-
+var logFile = "outputs/log.txt"
+var database = "outputs/output"
+var logQueue = []byte{}
 var cacheData = Dictionary {} // Declare global variable so not to overwrite - HOW TO IMPLEMENT THIS FOR MULTIPLE DICTIONARIES/COLLECTIONS?
-var queue []byte // what will be written to disk
+// var queue []byte // what will be written to disk
 var lkey = ""
 var flattened = make(map[string]interface{})
+// var queue = ""
 
 const (
     PORT = ":4127"
@@ -50,16 +52,19 @@ const (
 
 func echoServer(connection net.Conn) {      // this function does too many things. need to separate it
     for {
-        buf := make([]byte, 10000) // make buffer size infinite/flexible based on data input?
+        buf := make([]byte, 10000)          // use bytes library for this
         inputEnd, err := connection.Read(buf)
         if err == io.EOF {
             return
         }
 
-        data := buf[0:inputEnd]
-        message := string(data)
-        instruction, key, value := parseRequest(message) 
+        dataInput := buf[0:inputEnd]
+        message := string(dataInput)
 
+        instruction, key, value := parseRequest(message)
+        if instruction == "SET" || instruction == "UPDATE" || instruction == "REMOVE" {
+            saveLog(dataInput)
+        }
         callCacheData(connection, instruction, key, value)
 
         fmt.Printf("Server received: %s", message)
@@ -87,16 +92,11 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
     value := strings.Join(optionalValue[:], " ")
 
     switch instruction {
-        case "CREATE": {
-            var key = Collection {}
-            collection := key
-            fmt.Println(collection)
-            create(connection, collection)
-        }
+        // case "CREATE": create(connection, collection)
         case "GET": get(connection, key)
-        // case "GETALL": getAll(connection, key)
         case "SET": set(connection, key, value)
         case "UPDATE":  update(connection, key, value)
+        case "SAVE": save()
         case "LOAD": {
             filename := key
             load(connection, filename)
@@ -104,6 +104,7 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
         case "SHOW": show(connection, key)
         case "QUIT": quit(connection)
         case "REMOVE": remove(connection, key)
+        case "CLEAR": clearLog(logFile)
         default: connection.Write([]byte("Instruction not recognized"))
     }
 }
@@ -117,6 +118,7 @@ func quit(connection net.Conn) bool {
     }
     return true
 }
+
 func create(connection net.Conn, collection Collection) {
     // prefix 
 }
@@ -191,8 +193,11 @@ func load(connection net.Conn, filename string) {
         } else if _, ok := v.(float64); ok {
             v = v.(float64)
             cacheData[k] = v.(float64)
+        } else if _, ok := v.(bool); ok {
+            v = v.(bool)
+            cacheData[k] = v.(bool)
         } else {
-            connection.Write([]byte("JSON file format error"))
+            fmt.Println("JSON file format error")
         }
     }
 }
@@ -223,13 +228,20 @@ func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[strin
                     stringIndex := string(i)
                     (*flattened)[stringIndex] = value.(string)
                 } else {
-                    flatten(value.([]interface{})[i].(map[string]interface{}), key+":"+strconv.Itoa(i)+":", flattened)
+                    flatten(value.([]interface{})[i].(map[string]interface{}), 
+                            key+":"+strconv.Itoa(i)+":", flattened)
                 }
             }
         } else {
             flatten(value.(map[string]interface{}), key+":", flattened)
         }
     }
+}
+
+func unflatten(cacheData Dictionary) []byte {
+    // output encoded json
+    data := []byte("this is totally some data")
+    return data
 }
 
 func show(connection net.Conn, key string) {
@@ -245,7 +257,6 @@ func show(connection net.Conn, key string) {
             // SHOW THE UNIQUE PREFIXES
         }
         default: connection.Write([]byte("Invalid request"))
-
     }
 }
 
@@ -259,29 +270,59 @@ func remove(connection net.Conn, key string) {
     }  
 }
 
-func openDisk() *os.File {
-    disk, err := os.OpenFile("outputs/output", os.O_RDWR|os.O_APPEND, 0666) // open file outside of this function
+func openDisk(filename string) *os.File {
+    disk, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND, 0666)
     if err != nil {
         log.Fatal(err)
     }
-   
-    defer disk.Close()
+
     return disk
 }
 
-// func queueWrites() {
-//     // use some global variable byte string to queue up stuff
-//     // CHANNELS???
-//     // update the byte string with things to save
-// }
+func saveLog(dataInput []byte) {  // clear log
+    disk := openDisk(logFile)
+    defer disk.Close()
 
-func save(disk *os.File) {
     disk.Seek(0,END)
-    _, err := disk.Write(queue)
-        if err != nil {
+    _, err := disk.Write(dataInput)
+    if err != nil {
         log.Fatal(err)
     }
 }
+
+func clearLog(filename string) {
+    daLog, err := os.OpenFile(filename, os.O_TRUNC, 0666) // Opening it in truncate mode clears the log
+    if err != nil {
+        log.Fatal(err)
+    }
+    daLog.Close()
+}
+
+func queueWrites() {
+    // use some global variable byte string to queue up stuff
+    // CHANNELS???
+    // update the byte string with things to save
+}
+
+func save() {
+    data := unflatten(cacheData)
+    
+    disk := openDisk(database)
+    defer disk.Close()
+
+    disk.Seek(0,END)
+    _, err := disk.Write(data)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    clearLog(logFile)   // can clear the log once written to stable storage
+}
+
+// func (*File) Sync
+
+// func (f *File) Sync() (err error)
+// Sync commits the current contents of the file to stable storage. Typically, this means flushing the file system's in-memory copy of recently written data to disk.
 
 func main() {
     listener, err := net.Listen("tcp", PORT)
