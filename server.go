@@ -67,6 +67,7 @@ func quit(connection net.Conn) {
     save()
 
     // for SHUT DOWN - os.Exit() - after you save
+
     return
 }
 
@@ -276,15 +277,21 @@ func encode() string {
 func show(connection net.Conn, key string) {
     switch key {
         case "KEYS": {
-            keys := []string{}
-            for k := range lock.cacheData {
-                keys = append(keys, k)
-                sort.Strings(keys)
+            if len(lock.cacheData) == 0 {
+                connection.Write([]byte("NO KEYS TO SHOW YO"))
+                return
+            } else {
+                keys := []string{}
+                for k := range lock.cacheData {
+                    keys = append(keys, k)
+                    sort.Strings(keys)
+                }
+                connection.Write([]byte(strings.Join(keys, "\n")))
             }
-            connection.Write([]byte(strings.Join(keys, "\n")))
         }
         case "COLLECTIONS": {
-            // SHOW THE UNIQUE PREFIXES
+            connection.Write([]byte("No collections created yet"))
+            return
         }
         default: connection.Write([]byte("Invalid request"))
     }
