@@ -83,8 +83,12 @@ func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[strin
     }
 }
 
-func unflatten(jsonString string) (sjson string) {
-	for k,v := range cacheData {
+var uniqueKeys = map[string]string {}
+
+
+func unflatten(flattened map[string]interface{}, jsonString string) string {
+	
+	for k,v := range flattened {
 		if strings.Contains(k, ":") == false {
 			if _, ok := v.(string); ok {
 				jsonString = jsonString+"\""+k+"\":\""+v.(string)+"\","
@@ -96,12 +100,29 @@ func unflatten(jsonString string) (sjson string) {
 				fmt.Println("da fuck happened?")
 			}
 		} else {
-			newKey := strings.SplitN(k, ":", 2)[0]
-			fmt.Println("oldKey: ", k, "newKey: ", newKey)
+			splitKey := strings.SplitN(k, ":", 2)
+			newKey := splitKey[0]
+			newValue := strings.Join(splitKey[1:], " ")
+
+			// listIndex, _ := strconv.Atoi(newKey)
+			listElems := []string{}
+			listElems = append(listElems, newValue)
+			
+			fmt.Println(listElems)
+			uniqueKeys[newKey] = ""
+
+			innerCache := map[string]interface{}{}
+			innerCache[newValue] = v
+			unflatten(innerCache, jsonString)
+			fmt.Println("newKey: ", newKey, "newValue: ", newValue)
 		}
 	}
-	fmt.Println(jsonString)
-	return
+	for key := range uniqueKeys {
+		jsonString = jsonString+"\""+key+"\":NESTED VALUES HERE,"
+	}
+	jsonString = jsonString+"}"
+	return jsonString
+
 }
 
 func encode(sjson string) {
@@ -116,9 +137,10 @@ func encode(sjson string) {
 func main() {
 	
 	load("example.json")
-	sjson := unflatten(jsonString)
+	sjson := unflatten(cacheData, jsonString)
 
 	fmt.Println(sjson)
+	//fmt.Println(jsonString)
 	// sjson := `{"Name":"Alice", "Body":"Hello", "Time":{"Day":"Monday", "Hour":"Afternoon"}}`
 
 	//encode(sjson)

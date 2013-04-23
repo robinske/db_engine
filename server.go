@@ -43,6 +43,7 @@ var cacheData = Dictionary {} // Declare global variable so not to overwrite - H
 // var queue []byte // what will be written to disk
 var lkey = ""
 var flattened = make(map[string]interface{})
+var jsonString = "{"
 // var queue = ""
 
 const (
@@ -238,10 +239,36 @@ func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[strin
     }
 }
 
-func unflatten(cacheData Dictionary) []byte {
-    // output encoded json
-    data := []byte("this is totally some data")
-    return data
+func save() {
+    data := encode()
+    
+    disk := openDisk(database)
+    defer disk.Close()
+
+    disk.Seek(0,END)
+    _, err := disk.Write([]byte(data))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    clearLog(logFile)   // can clear the log once written to stable storage
+}
+
+func encode() string {
+    for k, v := range cacheData {
+        if _, ok := v.(string); ok {
+            jsonString = jsonString+"\""+k+"\":\""+v.(string)+"\","
+        } else if _, ok := v.(float64); ok {
+            jsonString = jsonString+"\""+k+"\":"+strconv.FormatFloat(v.(float64), 'f', -1, 64)+","
+        } else if _, ok := v.(bool); ok {
+            jsonString = jsonString+"\""+k+"\":"+strconv.FormatBool(v.(bool))+","
+        } else {
+            fmt.Println("da fuck happened?")
+        }
+    }
+
+    jsonString = jsonString[:(len(jsonString)-1)]+"}"
+    return jsonString
 }
 
 func show(connection net.Conn, key string) {
@@ -271,7 +298,7 @@ func remove(connection net.Conn, key string) {
 }
 
 func openDisk(filename string) *os.File {
-    disk, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND, 0666)
+    disk, err := os.OpenFile(filename, os.O_TRUNC|os.O_RDWR|os.O_APPEND, 0666)
     if err != nil {
         log.Fatal(err)
     }
@@ -279,7 +306,7 @@ func openDisk(filename string) *os.File {
     return disk
 }
 
-func saveLog(dataInput []byte) {  // clear log
+func saveLog(dataInput []byte) { 
     disk := openDisk(logFile)
     defer disk.Close()
 
@@ -297,32 +324,6 @@ func clearLog(filename string) {
     }
     daLog.Close()
 }
-
-func queueWrites() {
-    // use some global variable byte string to queue up stuff
-    // CHANNELS???
-    // update the byte string with things to save
-}
-
-func save() {
-    data := unflatten(cacheData)
-    
-    disk := openDisk(database)
-    defer disk.Close()
-
-    disk.Seek(0,END)
-    _, err := disk.Write(data)
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    clearLog(logFile)   // can clear the log once written to stable storage
-}
-
-// func (*File) Sync
-
-// func (f *File) Sync() (err error)
-// Sync commits the current contents of the file to stable storage. Typically, this means flushing the file system's in-memory copy of recently written data to disk.
 
 func main() {
     listener, err := net.Listen("tcp", PORT)
