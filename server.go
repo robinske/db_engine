@@ -32,6 +32,7 @@ var flattened = make(map[string]interface{})
 var lkey = ""
 var jsonString = ""
 var state = true
+var Collections []string
 var DATABASE string
 
 const (
@@ -60,24 +61,26 @@ func echoServer(connection net.Conn) {      // this function does too many thing
 
         callCacheData(connection, instruction, key, value)
 
-        fmt.Printf("Server received: %s", message)
+        fmt.Printf("Server received: %s\n", message)
     }
 }
 
 func quit(connection net.Conn) {
 
-    save()
+    if DATABASE != "" {
+        save(connection)
+        connection.Write([]byte("DB has been saved, program exiting"))       
+    } else {
+        connection.Write([]byte("No database set, changes have not been saved. Program exiting"))
+    }
 
-    // for SHUT DOWN - os.Exit() - after you save
-
-    return
+    os.Exit(0)
 }
 
-func save() {
-    
+func save(connection net.Conn) {
+
     data := encode()
-    disk := openDisk(DATABASE)
-    defer disk.Close()
+    disk := openDisk("outputs/output")
 
     disk.Seek(0,END)
     _, err := disk.Write([]byte(data))
@@ -86,6 +89,9 @@ func save() {
     }
 
     clearLog(LOGFILE)   // can clear the log once written to stable storage
+    disk.Close()
+    connection.Write([]byte("Saved to disk"))
+
 }
 
 func parseRequest(message string) (instruction, key, value string) {
@@ -109,27 +115,67 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
     value := strings.Join(optionalValue[:], " ")
 
     switch instruction {
-        // case "CREATE": create(connection, collection)
-        case "DATABASE:>": setDB(connection, key)
+        case "CREATE": {
+            collection := key
+            create(connection, collection)
+        }
+        case "DATABASE:>": {
+            DATABASE := key   
+            load(connection, DATABASE)
+            }
         case "GET": get(connection, key)
+        case "GETWHERE": getWhere(connection, key, value)
         case "SET": set(connection, key, value)
         case "UPDATE":  update(connection, key, value)
-        case "LOAD": {
-            filename := key
-            load(connection, filename)
-        }
+        case "LOAD": load(connection, key)
         case "SHOW": show(connection, key)
         case "REMOVE": remove(connection, key)
         case "QUIT": quit(connection)
-        case "SAVE": save()
-        case "CLEAR": clearLog(LOGFILE)
+        case "SAVE": save(connection)
+        // case "CLEAR": clearLog(LOGFILE)
         default: connection.Write([]byte("Instruction not recognized"))
     }
     return
 }
 
-func create(connection net.Conn, collection Collection) {
-    // prefix 
+func create(connection net.Conn, collection string) {
+    
+    Collections = append(Collections, collection)
+    fmt.Println(Collections)
+    return
+
+}
+
+func getWhere(connection net.Conn, key, value string) { // woah there this is like SO inefficient
+   
+    values := []string{}
+    whereValues := []string{}
+
+    for k := range lock.cacheData {      // NO LONGER HASHING, O(N)
+        if strings.Contains(k, key) {
+            lock.RLock()
+            v := lock.cacheData[k]
+            lock.RUnlock()
+            values = append(values, k+": "+v.(string))
+        }
+    }
+
+    if len(values) == 0 {
+        connection.Write([]byte("No values found"))
+    } else {
+        for _, v := range values {
+            if strings.Contains(v, value) {
+                whereValues = append(whereValues, v)
+            } else {
+                continue
+            }
+        }
+        if len(whereValues) == 0 {
+            connection.Write([]byte("No values found"))
+            return
+        }
+        connection.Write([]byte(strings.Join(whereValues, "\n")))
+    }
 }
 
 func get(connection net.Conn, key string) {
@@ -184,37 +230,40 @@ func update(connection net.Conn, key, value string) {
 }
 
 func load(connection net.Conn, filename string) {
-    fileContents, err := ioutil.ReadFile(filename)      // need better error handling here -- if file does not exist don't break
-    if err != nil {
-        log.Fatal(err)
+    
+    if filename == "" {
+        fmt.Println("got to an empty filename")
+        connection.Write([]byte("Please enter the data you would like to load"))
         return
-    }
-    
-    mappedJSON := decodeJSON(fileContents)
-
-    flatten(mappedJSON, lkey, &flattened)
-
-    // for key, value := range flattened {
-    //     fmt.Printf("%v:%v\n", key, value)
-    // }
-    
-    for k,v := range flattened {
-        k = strings.ToUpper(k)
-        if _, ok := v.(string); ok {
-            v = strings.ToUpper(v.(string))
-            lock.cacheData[k] = v.(string)
-        } else if _, ok := v.(float64); ok {
-            v = v.(float64)
-            lock.cacheData[k] = v.(float64)
-        } else if _, ok := v.(bool); ok {
-            v = v.(bool)
-            lock.cacheData[k] = v.(bool)
-        } else {
-            fmt.Println("JSON file format error")
+    } else {
+        fileContents, err := ioutil.ReadFile(filename)      // need better error handling here -- if file does not exist don't break
+        if err != nil {
+            fmt.Fprintf(os.Stderr, "%v\n", err)
+            connection.Write([]byte("Invalid file"))
+            return
         }
+        
+        mappedJSON := decodeJSON(fileContents)
+
+        flatten(mappedJSON, lkey, &flattened)
+        
+        for k,v := range flattened {
+            k = strings.ToUpper(k)
+            if _, ok := v.(string); ok {
+                v = strings.ToUpper(v.(string))
+                lock.cacheData[k] = v.(string)
+            } else if _, ok := v.(float64); ok {
+                v = v.(float64)
+                lock.cacheData[k] = v.(float64)
+            } else if _, ok := v.(bool); ok {
+                v = v.(bool)
+                lock.cacheData[k] = v.(bool)
+            } else {
+                fmt.Println("JSON file format error")
+            }
+        }
+        connection.Write([]byte("Loaded "+filename+" to collection X"))
     }
-    connection.Write([]byte("Loaded "+filename+" to collection X"))
-    return
 }
 
 func decodeJSON(encodedJSON []byte) map[string]interface{} {
@@ -291,6 +340,28 @@ func show(connection net.Conn, key string) {
             connection.Write([]byte("No collections created yet"))
             return
         }
+        case "DATA": {
+            if len(lock.cacheData) == 0 {
+                connection.Write([]byte("NO DATA TO SHOW YO"))
+                return
+            } else {
+                data := []string{}
+                for key, value := range lock.cacheData {
+                    if _, ok := value.(string); ok {
+                        data = append(data, (key+": "+value.(string)))     
+                    } else if _, ok := value.(float64); ok {
+                        data = append(data, (key+": "+strconv.FormatFloat(value.(float64), 'f', -1, 64)))
+                    } else if _, ok := value.(bool); ok {
+                        data = append(data, (key+": "+strconv.FormatBool(value.(bool))))
+                    } else {
+                        fmt.Println("huhhhh???")
+                        return
+                    }
+                }
+                sort.Strings(data)
+                connection.Write([]byte(strings.Join(data, "\n")))
+            }
+        }
         default: connection.Write([]byte("Invalid request"))
     }
 }
@@ -305,13 +376,15 @@ func remove(connection net.Conn, key string) {
     }  
 }
 
-func openDisk(filename string) *os.File {
-    disk, err := os.OpenFile(filename, os.O_TRUNC|os.O_RDWR|os.O_APPEND, 0666)
+func openDisk(filename string) (disk *os.File) {
+    var err error
+    disk, err = os.OpenFile(filename, os.O_TRUNC|os.O_RDWR|os.O_APPEND, 0666)
     if err != nil {
-        log.Fatal(err)
+        fmt.Fprintf(os.Stderr, "%v\n", err)
+        return
     }
 
-    return disk
+    return
 }
 
 func saveLog(dataInput []byte) { 
@@ -326,39 +399,18 @@ func saveLog(dataInput []byte) {
 }
 
 func clearLog(filename string) {
+    fmt.Println("got into clear log func")
+
     daLog, err := os.OpenFile(filename, os.O_TRUNC, 0666) // Opening it in truncate mode clears the log
+    fmt.Println("opened log file")
+    
     if err != nil {
         log.Fatal(err)
     }
+    fmt.Println("checked log error")
+
     daLog.Close()
-}
-
-// func loadDBOnStart(connection net.Conn) {
-    
-//     buf := make([]byte, 10000)          // use bytes library for this
-//     inputEnd, err := connection.Read(buf)
-//     if err == io.EOF {
-//         return
-//     }
-
-//     dataInput := buf[0:inputEnd]
-//     message := string(dataInput)
-
-//     msgSplit := strings.Fields(message)
-    
-//     if len(msgSplit) < 2 { return }
-//     DATABASE = msgSplit[1]
-
-//     load(connection, DATABASE)
-//     return
-// }
-
-func setDB(connection net.Conn, key string) {
-    fmt.Println("old db: ", DATABASE)
-    DATABASE := key
-    fmt.Println("new db: ", DATABASE)
-    
-    load(connection, DATABASE)
+    fmt.Println("closed log")
     return
 }
 
@@ -371,12 +423,6 @@ func main() {
     }
 
     defer listener.Close()
-
-    // c, err := listener.Accept()   
-    // loadDBOnStart(c)
-    // fmt.Println("loaded DB")
-    // c.Close()
-    // //listener.Close()
 
     for {
         conn, err := listener.Accept()

@@ -11,37 +11,43 @@ import (
     "fmt"
 )
 
+var DATABASE string
+
 const (
     PORT = ":4127"
 )
 
 func main() {
-    
-    var DATABASE string
-    
-    if len(os.Args) > 0 {
-        DATABASE = os.Args[1]
-        
-    } else {
-        DATABASE = "No database inputed"
-    }
 
     connection, err := net.Dial("tcp", PORT) 
     if err != nil {
         log.Fatal(err)
     }
 
-    connection.Write([]byte("DATABASE:> "+DATABASE))
-    if err != nil {
-        log.Fatal(err)
-    }
+    input := bufio.NewReader(os.Stdin)
+    buf := make([]byte, 1024)
 
     defer connection.Close()
 
-    input := bufio.NewReader(os.Stdin)
+    if len(os.Args) == 2 {
+        DATABASE = strings.TrimSpace(os.Args[1])
 
-    buf := make([]byte, 1024)
-       
+        _, err := connection.Write([]byte("DATABASE:> "+DATABASE+"\n")) // have to hit enter again??? MIGHT BE BECAUSE OF LINE 51  
+        if err != nil {
+            log.Fatal(err)
+        }
+
+    } else {
+        connection.Write([]byte("Please load a database"))
+    }
+
+    inputEnd, err := connection.Read(buf[:])
+    if err != nil {
+        return
+    }
+
+    fmt.Printf("%s\n", string(buf[0:inputEnd]))
+
     for {
         fmt.Printf(">>> ")
         rawMessage, err := input.ReadString('\n')
@@ -50,29 +56,25 @@ func main() {
           log.Fatal(err)
         }
 
-        message := strings.ToUpper(rawMessage)          // normalize input
-
-        if strings.TrimSpace(message) == "QUIT" {
-            fmt.Println("Goodbye!")
-            // connection.Write([]byte(strings.TrimSpace(session)+" has been disconnected\n"))   // name the session
-            connection.Close()
-            return
-        }
+        message := strings.TrimSpace(strings.ToUpper(rawMessage))          // normalize input
 
         if message != "" {
 
-            _,err := connection.Write([]byte(message))
-            if err != nil {
-              log.Fatal(err)
-              break
-            }
-            
+            connection.Write([]byte(message))
+
             inputEnd, err := connection.Read(buf[:])
             if err != nil {
                 return
             }
 
             fmt.Printf("%s\n", string(buf[0:inputEnd]))
+        }
+
+        if message == "QUIT" {
+            fmt.Println("Goodbye!")
+            // connection.Write([]byte(strings.TrimSpace(session)+" has been disconnected\n"))   // name the session
+            connection.Close()
+            return
         }
     }
 }
