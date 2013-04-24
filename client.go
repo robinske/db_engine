@@ -16,14 +16,22 @@ const (
 )
 
 func main() {
+    
+    var DATABASE string
+    
+    if len(os.Args) > 0 {
+        DATABASE = os.Args[1]
+        
+    } else {
+        DATABASE = "No database inputed"
+    }
+
     connection, err := net.Dial("tcp", PORT) 
     if err != nil {
         log.Fatal(err)
     }
 
-    fmt.Printf("Please Enter Your Session Name>> ")
-    sess := bufio.NewReader(os.Stdin)
-    session, err := sess.ReadString('\n')
+    connection.Write([]byte("DATABASE:> "+DATABASE))
     if err != nil {
         log.Fatal(err)
     }
@@ -46,7 +54,7 @@ func main() {
 
         if strings.TrimSpace(message) == "QUIT" {
             fmt.Println("Goodbye!")
-            connection.Write([]byte(strings.TrimSpace(session)+" has been disconnected\n"))   // name the session
+            // connection.Write([]byte(strings.TrimSpace(session)+" has been disconnected\n"))   // name the session
             connection.Close()
             return
         }

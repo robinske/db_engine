@@ -32,15 +32,17 @@ var flattened = make(map[string]interface{})
 var lkey = ""
 var jsonString = ""
 var state = true
+var DATABASE string
 
 const (
     PORT = ":4127"
     END = 2
     LOGFILE = "outputs/log.txt"
-    DATABASE = "outputs/output"
+    //DATABASE = "outputs/output"
 )
 
 func echoServer(connection net.Conn) {      // this function does too many things. need to separate it
+
     for {
         buf := make([]byte, 10000)          // use bytes library for this
         inputEnd, err := connection.Read(buf)
@@ -102,12 +104,13 @@ func parseRequest(message string) (instruction, key, value string) {
     return
 }
 
-func callCacheData(connection net.Conn, instruction, key string, optionalValue...string) {
+func callCacheData(connection net.Conn, instruction, key string, optionalValue...string) (DATABASE string) {
 
     value := strings.Join(optionalValue[:], " ")
 
     switch instruction {
         // case "CREATE": create(connection, collection)
+        case "DATABASE:>": setDB(connection, key)
         case "GET": get(connection, key)
         case "SET": set(connection, key, value)
         case "UPDATE":  update(connection, key, value)
@@ -122,6 +125,7 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
         case "CLEAR": clearLog(LOGFILE)
         default: connection.Write([]byte("Instruction not recognized"))
     }
+    return
 }
 
 func create(connection net.Conn, collection Collection) {
@@ -141,20 +145,12 @@ func get(connection net.Conn, key string) {
                 lock.RLock()
                 v := lock.cacheData[k]
                 lock.RUnlock()
-                
-                if strings.HasPrefix(k, key) {
-                    k = k[len(key)+1:]
-                } else if strings.HasSuffix(k, key) {
-                    k = k[:len(k)-len(key)]
-                }
-
                 values = append(values, k+": "+v.(string))
             }
         }
         if len(values) == 0 {
             connection.Write([]byte("No values found"))
         } else {
-            // output this as a JSON-like key/value list instead?
             connection.Write([]byte(strings.Join(values, " \n")))
         }
     }
@@ -188,19 +184,19 @@ func update(connection net.Conn, key, value string) {
 }
 
 func load(connection net.Conn, filename string) {
-    fileContents, err := ioutil.ReadFile(filename)
+    fileContents, err := ioutil.ReadFile(filename)      // need better error handling here -- if file does not exist don't break
     if err != nil {
         log.Fatal(err)
+        return
     }
-
-    connection.Write([]byte("Loaded "+filename+" to collection X"))
+    
     mappedJSON := decodeJSON(fileContents)
 
     flatten(mappedJSON, lkey, &flattened)
 
-    for key, value := range flattened {
-        fmt.Printf("%v:%v\n", key, value)
-    }
+    // for key, value := range flattened {
+    //     fmt.Printf("%v:%v\n", key, value)
+    // }
     
     for k,v := range flattened {
         k = strings.ToUpper(k)
@@ -217,6 +213,8 @@ func load(connection net.Conn, filename string) {
             fmt.Println("JSON file format error")
         }
     }
+    connection.Write([]byte("Loaded "+filename+" to collection X"))
+    return
 }
 
 func decodeJSON(encodedJSON []byte) map[string]interface{} {
@@ -335,7 +333,37 @@ func clearLog(filename string) {
     daLog.Close()
 }
 
+// func loadDBOnStart(connection net.Conn) {
+    
+//     buf := make([]byte, 10000)          // use bytes library for this
+//     inputEnd, err := connection.Read(buf)
+//     if err == io.EOF {
+//         return
+//     }
+
+//     dataInput := buf[0:inputEnd]
+//     message := string(dataInput)
+
+//     msgSplit := strings.Fields(message)
+    
+//     if len(msgSplit) < 2 { return }
+//     DATABASE = msgSplit[1]
+
+//     load(connection, DATABASE)
+//     return
+// }
+
+func setDB(connection net.Conn, key string) {
+    fmt.Println("old db: ", DATABASE)
+    DATABASE := key
+    fmt.Println("new db: ", DATABASE)
+    
+    load(connection, DATABASE)
+    return
+}
+
 func main() {
+
     listener, err := net.Listen("tcp", PORT)
     if err != nil {
         log.Fatal(err)
@@ -344,6 +372,12 @@ func main() {
 
     defer listener.Close()
 
+    // c, err := listener.Accept()   
+    // loadDBOnStart(c)
+    // fmt.Println("loaded DB")
+    // c.Close()
+    // //listener.Close()
+
     for {
         conn, err := listener.Accept()
         if err != nil {
@@ -351,6 +385,6 @@ func main() {
             return
         }
 
-        go echoServer(conn)        
+        go echoServer(conn) 
     }
 }
