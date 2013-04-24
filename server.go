@@ -149,32 +149,23 @@ func create(connection net.Conn, collection string) {
 func getWhere(connection net.Conn, key, value string) { // woah there this is like SO inefficient
    
     values := []string{}
-    whereValues := []string{}
 
     for k := range lock.cacheData {      // NO LONGER HASHING, O(N)
         if strings.Contains(k, key) {
             lock.RLock()
             v := lock.cacheData[k]
             lock.RUnlock()
-            values = append(values, k+": "+v.(string))
+
+            if value == v {
+                values = append(values, k+": "+v.(string))
+            }
         }
     }
 
     if len(values) == 0 {
         connection.Write([]byte("No values found"))
     } else {
-        for _, v := range values {
-            if strings.Contains(v, value) {
-                whereValues = append(whereValues, v)
-            } else {
-                continue
-            }
-        }
-        if len(whereValues) == 0 {
-            connection.Write([]byte("No values found"))
-            return
-        }
-        connection.Write([]byte(strings.Join(whereValues, "\n")))
+        connection.Write([]byte(strings.Join(values, "\n")))
     }
 }
 
