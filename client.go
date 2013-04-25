@@ -32,11 +32,10 @@ func main() {
     if len(os.Args) == 2 {
         DATABASE = strings.TrimSpace(os.Args[1])
 
-        _, err := connection.Write([]byte("DATABASE:> "+DATABASE+"\n")) // have to hit enter again??? MIGHT BE BECAUSE OF LINE 51  
+        _, err := connection.Write([]byte("DATABASE:> "+DATABASE)) // have to hit enter again??? MIGHT BE BECAUSE OF LINE 51  
         if err != nil {
             log.Fatal(err)
         }
-
     } else {
         connection.Write([]byte("Please load a database"))
     }

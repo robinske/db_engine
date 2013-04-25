@@ -18,7 +18,6 @@ import (
 // MAKE SURE EACH FUNCTION ONLY DOES ONE THING
 
 type Dictionary map[string]interface{}
-type Collection map[string]map[string]string
 type JSON map[string]interface{}
 
 var lock = struct{
@@ -31,15 +30,13 @@ var lock = struct{
 var flattened = make(map[string]interface{})
 var lkey = ""
 var jsonString = ""
-var state = true
-var Collections []string
+var collectionList []string
 var DATABASE string
 
 const (
     PORT = ":4127"
     END = 2
     LOGFILE = "outputs/log.txt"
-    //DATABASE = "outputs/output"
 )
 
 func echoServer(connection net.Conn) {      // this function does too many things. need to separate it
@@ -69,7 +66,7 @@ func quit(connection net.Conn) {
 
     if DATABASE != "" {
         save(connection)
-        connection.Write([]byte("DB has been saved, program exiting"))       
+        connection.Write([]byte("Program exiting"))       
     } else {
         connection.Write([]byte("No database set, changes have not been saved. Program exiting"))
     }
@@ -90,7 +87,7 @@ func save(connection net.Conn) {
 
     clearLog(LOGFILE)   // can clear the log once written to stable storage
     disk.Close()
-    connection.Write([]byte("Saved to disk"))
+    connection.Write([]byte("DB has been saved. "))
 
 }
 
@@ -110,17 +107,17 @@ func parseRequest(message string) (instruction, key, value string) {
     return
 }
 
-func callCacheData(connection net.Conn, instruction, key string, optionalValue...string) (DATABASE string) {
+func callCacheData(connection net.Conn, instruction, key string, optionalValue...string) {
 
     value := strings.Join(optionalValue[:], " ")
 
     switch instruction {
-        case "CREATE": {
-            collection := key
-            create(connection, collection)
-        }
+        // case "CREATE": {
+        //     collection := key
+        //     create(connection, collection)
+        // }
         case "DATABASE:>": {
-            DATABASE := key   
+            DATABASE = key   
             load(connection, DATABASE)
             }
         case "GET": get(connection, key)
@@ -132,21 +129,22 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
         case "REMOVE": remove(connection, key)
         case "QUIT": quit(connection)
         case "SAVE": save(connection)
-        // case "CLEAR": clearLog(LOGFILE)
         default: connection.Write([]byte("Instruction not recognized"))
     }
-    return
 }
 
-func create(connection net.Conn, collection string) {
+// func create(connection net.Conn, collection string) {
     
-    Collections = append(Collections, collection)
-    fmt.Println(Collections)
-    return
+//     collectionList = append(collectionList, collection)
 
-}
+//     lock.Lock()    
+//     lock.cacheData["<COLLECTIONS>"] = collectionList
+//     lock.Unlock()
 
-func getWhere(connection net.Conn, key, value string) { // woah there this is like SO inefficient
+//     connection.Write([]byte("Created "+collection))
+// }
+
+func getWhere(connection net.Conn, key, value string) {
    
     values := []string{}
 
@@ -175,7 +173,11 @@ func get(connection net.Conn, key string) {
     values := []string{}
 
     if ok {
+        if _, ok := value.(string); ok {
             connection.Write([]byte(value.(string)))
+        } else if _, ok := value.([]string); ok {
+            connection.Write([]byte(strings.Join(value.([]string)[:], " ")))
+        }
     } else {
         for k := range lock.cacheData {      // NO LONGER HASHING, O(N)
             if strings.Contains(k, key) {
@@ -195,7 +197,8 @@ func get(connection net.Conn, key string) {
 
 func set(connection net.Conn, key, value string) {
 
-    // make clear for which dictionary for when multiple clients are dealing with different cache
+    // make clear for which collection
+
     _, ok := lock.cacheData[key]         // check if key is valid
     if ok {
         connection.Write([]byte(key+" already added. To modify, UPDATE key"))
@@ -209,7 +212,7 @@ func set(connection net.Conn, key, value string) {
 
 func update(connection net.Conn, key, value string) {
     
-    _, ok := lock.cacheData[key]         // check if key is valid
+    _, ok := lock.cacheData[key]        // check if key is valid
     if ok {
         lock.Lock()
         lock.cacheData[key] = value     // overwrite
@@ -220,14 +223,22 @@ func update(connection net.Conn, key, value string) {
     }
 }
 
-func load(connection net.Conn, filename string) {
+func load(connection net.Conn, filename string) { //, optCollection...string
     
     if filename == "" {
-        fmt.Println("got to an empty filename")
         connection.Write([]byte("Please enter the data you would like to load"))
         return
+
+    // } else if len(optCollection) == 0 {
+    //     connection.Write([]byte("No collection entered, please specify collection"))
+    //     return
+
     } else {
-        fileContents, err := ioutil.ReadFile(filename)      // need better error handling here -- if file does not exist don't break
+        
+        // collection := strings.Join(optCollection[:], " ")
+        // create(connection, collection)
+
+        fileContents, err := ioutil.ReadFile(filename)
         if err != nil {
             fmt.Fprintf(os.Stderr, "%v\n", err)
             connection.Write([]byte("Invalid file"))
@@ -240,6 +251,7 @@ func load(connection net.Conn, filename string) {
         
         for k,v := range flattened {
             k = strings.ToUpper(k)
+            // k = "<"+strings.ToUpper(collection)+">"+k
             if _, ok := v.(string); ok {
                 v = strings.ToUpper(v.(string))
                 lock.cacheData[k] = v.(string)
@@ -253,8 +265,8 @@ func load(connection net.Conn, filename string) {
                 fmt.Println("JSON file format error")
             }
         }
-        connection.Write([]byte("Loaded "+filename+" to collection X"))
-    }
+        connection.Write([]byte("Loaded "+filename+" to collection ")) // +collection))
+    } 
 }
 
 func decodeJSON(encodedJSON []byte) map[string]interface{} {
@@ -301,6 +313,14 @@ func encode() string {
             jsonString = jsonString+"\""+k+"\":"+strconv.FormatFloat(v.(float64), 'f', -1, 64)+","
         } else if _, ok := v.(bool); ok {
             jsonString = jsonString+"\""+k+"\":"+strconv.FormatBool(v.(bool))+","
+        } else if _, ok := v.([]string); ok {
+            valuestring := ""
+            for _, value := range v.([]string) {
+                valuestring = valuestring+"\""+value+"\","
+                fmt.Println("adding value", value)
+            }
+            valuestring = valuestring[:(len(valuestring)-1)]
+            jsonString = jsonString+"\""+k+"\":"+"["+valuestring+"],"
         } else {
             fmt.Println("da fuck happened?")
         }
@@ -327,10 +347,11 @@ func show(connection net.Conn, key string) {
                 connection.Write([]byte(strings.Join(keys, "\n")))
             }
         }
-        case "COLLECTIONS": {
-            connection.Write([]byte("No collections created yet"))
-            return
-        }
+        // case "COLLECTIONS": {
+        //     connection.Write([]byte("No collections created yet"))
+        //     return
+        // }
+        case "DATABASE": connection.Write([]byte(DATABASE))
         case "DATA": {
             if len(lock.cacheData) == 0 {
                 connection.Write([]byte("NO DATA TO SHOW YO"))
@@ -390,19 +411,14 @@ func saveLog(dataInput []byte) {
 }
 
 func clearLog(filename string) {
-    fmt.Println("got into clear log func")
 
     daLog, err := os.OpenFile(filename, os.O_TRUNC, 0666) // Opening it in truncate mode clears the log
-    fmt.Println("opened log file")
     
     if err != nil {
         log.Fatal(err)
     }
-    fmt.Println("checked log error")
 
     daLog.Close()
-    fmt.Println("closed log")
-    return
 }
 
 func main() {
