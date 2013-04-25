@@ -22,13 +22,14 @@ var dictionary = cacheData {} // Declare global variable so not to overwrite
 
 func echoServer(c net.Conn) {
     for {
+
         buf := make([]byte, 512) // makes a buffer to keep chunks that are read/written
-        nr, err := c.Read(buf)
+        nr, err := c.Read(b)
         if err == io.EOF {
             return
         }
 
-        data := buf[0:nr]
+        data := b[0:nr]
 
         message := string(data)
         instruct, key, value := parseRequest(message)

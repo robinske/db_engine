@@ -32,7 +32,7 @@ var lock = struct{
 
 // other locking options have a single goroutine that's responsible for applying changes ot the database only one channel to send the mutations -- will manage a queue of requests
 
-var flattened = make(map[string]interface{})
+var nested = make(map[string]interface{})
 var lkey = ""
 var jsonString = ""
 var collectionList []string
@@ -253,9 +253,9 @@ func load(connection net.Conn, filename string) { //, optCollection...string
         
         mappedJSON := decodeJSON(fileContents)
 
-        flatten(mappedJSON, lkey, &flattened)
+        insert(mappedJSON, &nested)
         
-        for k,v := range flattened {
+        for k,v := range nested {
             k = strings.ToUpper(k)
             // k = "<"+strings.ToUpper(collection)+">"+k
             if _, ok := v.(string); ok {
@@ -271,6 +271,7 @@ func load(connection net.Conn, filename string) { //, optCollection...string
                 fmt.Println("JSON file format error")
             }
         }
+        
         connection.Write([]byte("Loaded "+filename+" to collection ")) // +collection))
     } 
 }
@@ -284,29 +285,30 @@ func decodeJSON(encodedJSON []byte) map[string]interface{} {
     return decoded
 }
 
-func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[string]interface{}) {
-    for rkey, value := range inputJSON {
-        key := lkey+rkey
-        if _, ok := value.(string); ok {
-            (*flattened)[key] = value.(string)
-        } else if _, ok := value.(float64); ok {
-            (*flattened)[key] = value.(float64)
-        } else if _, ok := value.(bool); ok {
-            (*flattened)[key] = value.(bool)
-        } else if _, ok := value.([]float64); ok { // type check for a list of integers not working - is this valid JSON though?
-            (*flattened)[key] = value.([]float64)
-        } else if _, ok := value.([]interface{}); ok {
-            for i := 0; i<len(value.([]interface{})); i++ {
-                if _, ok := value.([]string); ok {
-                    stringIndex := string(i)
-                    (*flattened)[stringIndex] = value.(string)
-                } else {
-                    flatten(value.([]interface{})[i].(map[string]interface{}), 
-                            key+":"+strconv.Itoa(i)+":", flattened)
+func insert(inputJSON map[string]interface{}, nested *map[string]interface{}) {
+    for key, value := range inputJSON {
+        switch v := value.(type) {
+            case float64: (*nested)[key] = v
+            case string: (*nested)[key] = v
+            case bool: (*nested)[key] = v
+            case []interface{}: 
+                for _, val := range v {
+                    if _, ok := val.(string); ok {
+                        v = append(v, val.(string))
+                        (*nested)[key] = v
+                    } else if _, ok := val.(int); ok {
+                        v = append(v, val.(string))
+                        (*nested)[key] = v
+                    } else {
+                        insert(val.(map[string]interface{}), nested)
+                        (*nested)[key] = v
+                    }
                 }
-            }
-        } else {
-            flatten(value.(map[string]interface{}), key+":", flattened)
+            case map[string]interface{}: 
+                (*nested)[key] = v
+                insert(v, nested)
+            default:
+                fmt.Println("ABLAKJFALSKDFJ WHAT DID I MISS", v)
         }
     }
 }
