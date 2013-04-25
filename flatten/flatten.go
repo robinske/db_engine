@@ -12,9 +12,9 @@ var lkey = ""
 var flattened = make(map[string]interface{})
 
 
-func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[string]interface{}) {
-	for rkey, value := range inputJSON {
-		key := lkey+rkey
+func insert(inputJSON map[string]interface{}, oldkey string, flattened *map[string]interface{}) {
+	for newkey, value := range inputJSON {
+		key := oldkey+newkey
 		if _, ok := value.(string); ok {
 			(*flattened)[key] = value.(string)
 		} else if _, ok := value.(float64); ok {
@@ -40,31 +40,35 @@ func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[strin
 	}
 }
 
-func load(filename string) map[string]interface{} {
-    fileContents, err := ioutil.ReadFile(filename)
+func load(filename string) []byte {
+    encodedJSON, err := ioutil.ReadFile(filename)
     if err != nil {
         log.Fatal(err)
     }
 
-    mappedJSON := decodeJSON(fileContents)
-
-    return mappedJSON
+    //fmt.Println(mappedJSON)
+    return encodedJSON
 }
 
 func decodeJSON(encodedJSON []byte) map[string]interface{} {
-    decoded := map[string]interface{} {}
-    err := json.Unmarshal(encodedJSON, &decoded)
+    decodedJSON := map[string]interface{} {}
+    err := json.Unmarshal(encodedJSON, &decodedJSON)
     if err != nil {
         log.Fatal(err)
     }
-    return decoded
+    //fmt.Println(decoded)
+
+    fmt.Printf("%v\n", decodedJSON["batters"].(map[string]interface{})["batter"].([]interface{})[0].(map[string]interface{})["id"])
+
+    return decodedJSON
 }
 
 func main() {
-	mappedJSON := load("working/ex3.json")
+	encodedJSON := load("example.json")
+	decodedJSON := decodeJSON(encodedJSON)
 	
-	flatten(mappedJSON, lkey, &flattened)
-    for key, value := range flattened {
-    	fmt.Printf("%v:%v\n", key, value)
-    }	
+	flatten(decodedJSON, lkey, &flattened)
+    // for key, value := range flattened {
+    // 	fmt.Printf("%v:%v\n", key, value)
+    // }	
 }

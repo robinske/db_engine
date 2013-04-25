@@ -1,0 +1,12 @@
+{
+	"id": "0001",
+	"type": true,
+	"name": "Cake",
+	"ppu": 0.55,
+	"batters":
+		{
+			"batter": { "id": "1001", "type": "Regular" },
+			"batter": { "id": "1002", "type": "Regular" }
+		},
+	"topping": { "id": "5001", "type": "None" }
+}
