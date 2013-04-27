@@ -56,7 +56,7 @@ func decodeJSON(encodedJSON []byte) map[string]interface{} {
         log.Fatal(err)
     }
 
-    //fmt.Printf("%v\n", decodedJSON["batters"].(map[string]interface{})["batter"].([]interface{})[0].(map[string]interface{})["id"])
+    fmt.Printf("%v\n", decodedJSON["batters"].(map[string]interface{})["batter"].([]interface{})[0].(map[string]interface{})["id"])
 
     return decodedJSON
 }

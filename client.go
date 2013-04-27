@@ -37,7 +37,7 @@ func main() {
             log.Fatal(err)
         }
     } else {
-        connection.Write([]byte("Please load a database"))
+        connection.Write([]byte("Please load a database")) // only showing on server, not on client. Update this
     }
 
     inputEnd, err := connection.Read(buf[:])
@@ -52,7 +52,7 @@ func main() {
         rawMessage, err := input.ReadString('\n')
 
         if err != nil {
-          log.Fatal(err)
+            log.Fatal(err)
         }
 
         message := strings.TrimSpace(strings.ToUpper(rawMessage))          // normalize input
