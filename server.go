@@ -44,7 +44,7 @@ const (
     LOGFILE = "outputs/log.txt"
 )
 
-func echoServer(connection net.Conn) {      // this function does too many things. need to separate it
+func CallMeAlways(connection net.Conn) {
 
     for {
         buf := make([]byte, 10000)          // use bytes library for this
@@ -173,11 +173,7 @@ func getWhere(connection net.Conn, key, value string) {
     }
 }
 
-// make an array of values that are stored as pointers to their memory location
-// keep sorted buckets/indexes (for above) of the values for each root level key
-// any matching values within the bucket - divide and conquer strategy // look before you leap
-// return a count of the number of instances of values
-// once you've then iterated through the keys and hit the count you can stop
+
 
 func get(connection net.Conn, key string) {
 
@@ -450,6 +446,6 @@ func main() {
             return
         }
 
-        go echoServer(conn) 
+        go CallMeAlways(conn) 
     }
 }

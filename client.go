@@ -13,7 +13,7 @@ var DATABASE string
 
 const (
     PORT = ":4127"
-    BUFFER_SIZE = 1e8
+    BUFFER_SIZE = 1e9
 )
 
 func main() {
@@ -68,7 +68,6 @@ func main() {
         }
 
         if message == "QUIT" {
-            fmt.Println("Goodbye!")
             connection.Close()
             return
         }
