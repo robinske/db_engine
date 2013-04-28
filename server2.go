@@ -150,7 +150,7 @@ func KSearch(connection net.Conn, key, value string) {
             // lock.RUnlock()
 
             if value == v {
-                values = append(values, k+": "+v.(string))
+                values = append(values, k+": "+v.(string)) // non efficient space complexity // something to consider if time
             }
         }
     }
@@ -158,7 +158,7 @@ func KSearch(connection net.Conn, key, value string) {
     if len(values) == 0 {
         connection.Write([]byte("No values found"))
     } else {
-        connection.Write([]byte(strings.Join(values, "\n")))
+        connection.Write([]byte(strings.Join(values, "\n")+"\n<<Values: "+strconv.Itoa(len(values))+">>"))
     }
 }
 
@@ -210,15 +210,10 @@ func get(connection net.Conn, key string) {
     if !ok {
         connection.Write([]byte("Key not valid"))
     } else {
-        // fmtValue := fmt.Sprintf("%v", value)
-        // fmt.Println(fmtValue)
         fmtVV := formatOutput(value, "")
         connection.Write([]byte(fmtVV))
-        // show type of output
     }
 }
-
-// var counter = 0
 
 func formatOutput(value interface{}, fmtVV string) string {
     switch vv := value.(type) {
@@ -235,39 +230,18 @@ func formatOutput(value interface{}, fmtVV string) string {
             fmtVV = "["+strings.Join(tmp, ",\n")+"]"
         case map[string]interface{}:
             tmp := []string{}
-
             for key, val := range vv {
-                
-                // lock.RLock()
-                // _, ok := lock.nested[key]
-                // lock.RUnlock()
-
-                // if counter == 0 {         // if key is a top level key, don't add the braces. Just checking if it is doesn't work because nested keys can be duplicates
-                //     fmtVal := "\""+key+"\""+": "+formatOutput(val, fmtVV)
-                //     tmp = append(tmp, fmtVal)
-                // } else {
-                    fmtVal := "{"+"\""+key+"\""+": "+formatOutput(val, fmtVV)+"}"
-                    tmp = append(tmp, fmtVal)
-                // }
-
-                // if ok {         // if key is a top level key, don't add the braces
-                //     fmtVal := "\""+key+"\""+": "+formatOutput(val, fmtVV)
-                //     tmp = append(tmp, fmtVal)
-                // } else {
-                //     fmtVal := "{"+"\""+key+"\""+": "+formatOutput(val, fmtVV)+"}"
-                //     tmp = append(tmp, fmtVal)
-                // }
+                fmtVal := "{"+"\""+key+"\""+": "+formatOutput(val, fmtVV)+"}"
+                tmp = append(tmp, fmtVal)
             }
             fmtVV = strings.Join(tmp, ", ")
-            // counter++
-            // fmt.Println(counter)
         default: fmt.Println("Error Occured")
     }
     return fmtVV
 }
 
 func search(connection net.Conn, key string) {
-
+// show a count???
     flatlock.Lock()
     flatten(lock.nested, lkey, &flatlock.flattened)
     flatlock.Unlock()
@@ -301,6 +275,8 @@ func set(connection net.Conn, key, value string) {
         connection.Write([]byte("Added "+key+":"+value))
     }
 }
+
+// have a way to update this with nested vales. recognize nested dictionaries with a / and lists with /# or something???
 
 func update(connection net.Conn, key, value string) {
     
@@ -413,6 +389,7 @@ func encode() string {
     }
     
     jsonString = "{"+strings.Join(tmp, ", ")+"}"
+
     return jsonString
 }
 

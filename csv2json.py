@@ -1,7 +1,9 @@
 import csv
 import json
 
-f = open('sample.csv', 'r')
-reader = csv.DictReader(f, fieldnames = ( "id","name","lat","lng" ) )
+f = open('users.csv', 'r')
+reader = csv.DictReader(f, delimiter="|", fieldnames = ( "id","age","gender","occupation","zipcode" ) )
 out = json.dumps( [ row for row in reader ] )
-print out
+
+fo = open('users.json', 'w')
+fo.write(out)
