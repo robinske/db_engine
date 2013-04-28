@@ -1,5 +1,3 @@
-// CLIENT DIALS / WRITES
-
 package main
 
 import (
@@ -15,6 +13,7 @@ var DATABASE string
 
 const (
     PORT = ":4127"
+    BUFFER_SIZE = 1e8
 )
 
 func main() {
@@ -25,27 +24,26 @@ func main() {
     }
 
     input := bufio.NewReader(os.Stdin)
-    buf := make([]byte, 1024)
+    buf := make([]byte, BUFFER_SIZE)
 
     defer connection.Close()
 
     if len(os.Args) == 2 {
         DATABASE = strings.TrimSpace(os.Args[1])
 
-        _, err := connection.Write([]byte("DATABASE:> "+DATABASE)) // have to hit enter again??? MIGHT BE BECAUSE OF LINE 51  
+        _, err := connection.Write([]byte("DATABASE:> "+DATABASE))
         if err != nil {
             log.Fatal(err)
         }
+        inputEnd, err := connection.Read(buf[:])
+        if err != nil {
+            return
+        }
+
+        fmt.Printf("%s\n", string(buf[0:inputEnd]))
     } else {
-        connection.Write([]byte("Please load a database")) // only showing on server, not on client. Update this
+        fmt.Println("Please load a database")
     }
-
-    inputEnd, err := connection.Read(buf[:])
-    if err != nil {
-        return
-    }
-
-    fmt.Printf("%s\n", string(buf[0:inputEnd]))
 
     for {
         fmt.Printf(">>> ")
@@ -71,7 +69,6 @@ func main() {
 
         if message == "QUIT" {
             fmt.Println("Goodbye!")
-            // connection.Write([]byte(strings.TrimSpace(session)+" has been disconnected\n"))   // name the session
             connection.Close()
             return
         }

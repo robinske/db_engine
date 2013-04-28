@@ -173,6 +173,12 @@ func getWhere(connection net.Conn, key, value string) {
     }
 }
 
+// make an array of values that are stored as pointers to their memory location
+// keep sorted buckets/indexes (for above) of the values for each root level key
+// any matching values within the bucket - divide and conquer strategy // look before you leap
+// return a count of the number of instances of values
+// once you've then iterated through the keys and hit the count you can stop
+
 func get(connection net.Conn, key string) {
 
     value, ok := lock.cacheData[key]         // check if key is valid
@@ -185,7 +191,7 @@ func get(connection net.Conn, key string) {
             connection.Write([]byte(strings.Join(value.([]string)[:], " ")))
         }
     } else {
-        for k := range lock.cacheData {      // NO LONGER HASHING, O(N)
+        for k := range lock.cacheData {      // NO LONGER HASHING, O(N)^M, where M is length of key
             if strings.Contains(k, key) {
                 lock.RLock()
                 v := lock.cacheData[k]
