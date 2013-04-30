@@ -12,40 +12,32 @@ import (
     "encoding/json"
     "strconv"
     "sync"
-    "sort"
+    // "sort"
 )
 
 // MAKE SURE EACH FUNCTION ONLY DOES ONE THING
 
-type Dictionary map[string]interface{}
-type JSON map[string]interface{}
-
-var lock = struct{
+var cache = struct{
     sync.RWMutex
-    nested map[string]interface{}
-}{nested: make(map[string]interface{})}
+    Data map[string]interface{}
+}{Data: make(map[string]interface{})}
 
-var flatlock = struct{
-    sync.RWMutex
-    flattened map[string]interface{}
-}{flattened: make(map[string]interface{})}
-
+var keyList = make(map[string]map[string]struct{})
 var lkey = ""
 var jsonString = ""
-var collectionList []string
 var DATABASE string
 
 const (
     PORT = ":4127"
     END = 2
     LOGFILE = "outputs/log.txt"
-    BUFFER_SIZE = 1e9
+    BUFFER_SIZE = 1024
 )
 
 func echoServer(connection net.Conn) {      // this function does too many things. need to separate it
 
     for {
-        buf := make([]byte, BUFFER_SIZE)          // use bytes library for this
+        buf := make([]byte, BUFFER_SIZE)    // use bytes library for this
                                             // can increase this number or use a streaming data parser
         inputEnd, err := connection.Read(buf)
         if err == io.EOF {
@@ -60,7 +52,7 @@ func echoServer(connection net.Conn) {      // this function does too many thing
             saveLog(dataInput)
         }
 
-        callnested(connection, instruction, key, value)
+        callCacheData(connection, instruction, key, value)
 
         fmt.Printf("Server received: %s\n", message)
     }
@@ -111,7 +103,7 @@ func parseRequest(message string) (instruction, key, value string) {
     return
 }
 
-func callnested(connection net.Conn, instruction, key string, optionalValue...string) {
+func callCacheData(connection net.Conn, instruction, key string, optionalValue...string) {
 
     value := strings.Join(optionalValue[:], " ")
 
@@ -122,11 +114,12 @@ func callnested(connection net.Conn, instruction, key string, optionalValue...st
             }
         case "GET": get(connection, key)
         case "KSEARCH": KSearch(connection, key, value)
-        case "VSEARCH": 
-            value = key
-            VSearch(connection, value)
+        // case "VSEARCH": 
+        //     value = key
+        //     VSearch(connection, value)
         case "SET": set(connection, key, value)
         case "UPDATE":  update(connection, key, value)
+        case "NUPDATE": updateNested(connection, key, value)
         case "LOAD": load(connection, key)
         case "SHOW": show(connection, key)
         case "REMOVE": remove(connection, key)
@@ -137,20 +130,21 @@ func callnested(connection net.Conn, instruction, key string, optionalValue...st
     }
 }
 
-func KSearch(connection net.Conn, key, value string) {
+func KSearch(connection net.Conn, key, value string) string {
     // only works for string values
-    flatten(lock.nested, lkey, &flatlock.flattened)
+    
+    flattened := make(map[string]interface{})
+    flatten(cache.Data, lkey, &flattened)
     values := []string{}
 
 
-    for k := range flatlock.flattened {      // NO LONGER HASHING, O(N)
+    for k := range flattened {      // NO LONGER HASHING, O(N)
         if strings.Contains(k, key) {
-            // lock.RLock()
-            v := flatlock.flattened[k]            
-            // lock.RUnlock()
+            v := flattened[k]            
 
             if value == v {
-                values = append(values, k+": "+v.(string)) // non efficient space complexity // something to consider if time
+                fmtV := fmt.Sprintf("%v", v)
+                values = append(values, k+": "+fmtV) // non efficient space // something to consider if time
             }
         }
     }
@@ -160,52 +154,78 @@ func KSearch(connection net.Conn, key, value string) {
     } else {
         connection.Write([]byte(strings.Join(values, "\n")+"\n<<Values: "+strconv.Itoa(len(values))+">>"))
     }
+    return strings.Join(values, "")
 }
 
-func VSearch(connection net.Conn, value string) {
-    // only works for string values
-    indexValues(flatlock.flattened)
-    values := []string{}
+// func VSearch(connection net.Conn, value string) {
+//     // only works for string values
+//     var flatlock = struct{
+//         sync.RWMutex
+//         flattened map[string]interface{}
+//     }{flattened: make(map[string]interface{})}
+//     indexValues(flatlock.flattened)
+//     values := []string{}
 
-    if len(values) == 0 {
-        connection.Write([]byte("No values found"))
-    } else {
-        connection.Write([]byte(strings.Join(values, "\n")))
-    }
-}
+//     if len(values) == 0 {
+//         connection.Write([]byte("No values found"))
+//     } else {
+//         connection.Write([]byte(strings.Join(values, "\n")))
+//     }
+// }
 
-func indexValues(flattened map[string]interface{}) {
+// func indexValues(flattened map[string]interface{}) (values []string) {
     
-    flatten(lock.nested, lkey, &flattened)
+//     //flatten values
+//     flatten(cache.Data, lkey, &flattened)
 
-    buckets := make(map[string][]string)
+//     buckets := make(map[string][]string)
 
-    for key := range lock.nested {
-        buckets[key] = []string{}
-    }
+    
 
+//     //create bucket keys for each top level key
+//     for key := range cache.Data {
+//         buckets[key] = []string{}
+//     }
 
+//     values = []string{}
 
-    //flatten values
-    //create bucket keys for each top level key
-    //
-    //put values (from flattened) into their respective buckets based on the top level key
-    //convert values to strings
-    //
+//     for k,v := range flattened {
+        
+//         switch vv := v.(type) {
+//             case string: values = append(values, vv)
+//             case float64: values = append(values, strconv.FormatFloat(vv, 'f', -1, 64))
+//             case bool: values = append(values, strconv.FormatBool(vv))
+//             case nil: values = append(values, "nil")
+//         }
 
-    // 
-    // make an array of values that are stored as pointers to their memory location
-    // keep sorted buckets/indexes (for above) of the values for each root level key
-    // any matching values within the bucket - divide and conquer strategy // look before you leap
-    // return a count of the number of instances of values
-    // once you've then iterated through the keys and hit the count you can stop
-}
+//         if strings.Contains(k, ":") {
+//             key := strings.Split(k, ":")[0]
+//             buckets[key] = values
+//         } else {
+//             buckets[k] = values
+//         }
+//     }
+
+//     fmt.Println(buckets)
+    
+
+//     //put values (from flattened) into their respective buckets based on the top level key
+//     //convert values to strings
+
+//     // 
+//     // make an array of values that are stored as pointers to their memory location
+//     // keep sorted buckets/indexes (for above) of the values for each root level key
+//     // any matching values within the bucket - divide and conquer strategy // look before you leap
+//     // return a count of the number of instances of values
+//     // once you've then iterated through the keys and hit the count you can stop
+//     return
+// }
 
 func get(connection net.Conn, key string) {
 
-    lock.RLock()
-    value, ok := lock.nested[key]         // check if key is valid
-    lock.RUnlock()
+    cache.RLock()
+    value, ok := cache.Data[key]         // check if key is valid
+    cache.RUnlock()
 
     if !ok {
         connection.Write([]byte("Key not valid"))
@@ -215,43 +235,40 @@ func get(connection net.Conn, key string) {
     }
 }
 
-func formatOutput(value interface{}, fmtVV string) string {
-    switch vv := value.(type) {
-        case string: fmtVV = "\""+vv+"\""
-        case float64: fmtVV = fmt.Sprintf("%v", vv)
-        case bool: fmtVV = fmt.Sprintf("%v", vv)
-        case nil: fmtVV = fmt.Sprintf("%v", vv)
+func formatOutput(vInterface interface{}, fmtValue string) string {
+    switch value := vInterface.(type) {
+        case string: fmtValue = "\""+value+"\""
+        case float64: fmtValue = fmt.Sprintf("%v", value)
+        case bool: fmtValue = fmt.Sprintf("%v", value)
+        case nil: fmtValue = fmt.Sprintf("%v", value)
         case []interface{}:
             tmp := []string{}
-            for _, val := range vv {
-                fmtVal := formatOutput(val, fmtVV)
-                tmp = append(tmp, fmtVal)
+            for _, arrayElem := range value {
+                tmpfmtValue := formatOutput(arrayElem, fmtValue)
+                tmp = append(tmp, tmpfmtValue)
             }
-            fmtVV = "["+strings.Join(tmp, ",\n")+"]"
+            fmtValue = "["+strings.Join(tmp, ",\n")+"]"
         case map[string]interface{}:
             tmp := []string{}
-            for key, val := range vv {
-                fmtVal := "{"+"\""+key+"\""+": "+formatOutput(val, fmtVV)+"}"
-                tmp = append(tmp, fmtVal)
+            for k, v := range value {
+                tmpfmtValue := "{"+"\""+k+"\""+": "+formatOutput(v, fmtValue)+"}"
+                tmp = append(tmp, tmpfmtValue)
             }
-            fmtVV = strings.Join(tmp, ", ")
+            fmtValue = strings.Join(tmp, ", ")
         default: fmt.Println("Error Occured")
     }
-    return fmtVV
+    return fmtValue
 }
 
 func search(connection net.Conn, key string) {
-// show a count???
-    flatlock.Lock()
-    flatten(lock.nested, lkey, &flatlock.flattened)
-    flatlock.Unlock()
+    
+    flattened := make(map[string]interface{})
+    flatten(cache.Data, lkey, &flattened)
     values := []string{}
 
-    for k := range flatlock.flattened {      // NO LONGER HASHING, O(N)^M, where M is length of key
+    for k := range flattened {      // NO LONGER HASHING, O(N)^M, where M is length of key
         if strings.Contains(k, key) {
-            flatlock.RLock()
-            v := flatlock.flattened[k]
-            flatlock.RUnlock()
+            v := flattened[k]
             fmtV := fmt.Sprintf("%v", v)
             values = append(values, k+": "+fmtV)
         }
@@ -259,34 +276,84 @@ func search(connection net.Conn, key string) {
     if len(values) == 0 {
         connection.Write([]byte("No values found"))
     } else {
-        connection.Write([]byte(strings.Join(values, " \n")))
+        connection.Write([]byte(strings.Join(values, "\n")+"\n<<Values: "+strconv.Itoa(len(values))+">>"))
     }
 }
 
 func set(connection net.Conn, key, value string) {
 
-    _, ok := lock.nested[key]         // check if key is valid
+    _, ok := cache.Data[key]         // check if key is valid
     if ok {
         connection.Write([]byte(key+" already added. To modify, UPDATE key"))
     } else {
-        lock.Lock()
-        lock.nested[key] = value
-        lock.Unlock()
+        cache.Lock()
+        cache.Data[key] = value
+        cache.Unlock()
         connection.Write([]byte("Added "+key+":"+value))
     }
 }
 
 // have a way to update this with nested vales. recognize nested dictionaries with a / and lists with /# or something???
 
+func updateNested(connection net.Conn, key, value string) {
+
+    keyList := strings.Split(key, "/")
+
+    if len(keyList) == 0 { 
+        connection.Write([]byte("Update failed"))
+        return 
+    }
+    collection := keyList[0]
+
+    if len(keyList) == 1 { 
+        connection.Write([]byte("Update failed"))
+        return 
+    }
+    uniqueKey := keyList[1]
+
+    if len(keyList) == 2 { 
+        connection.Write([]byte("Update failed"))
+        return 
+    }
+    keyToUpdate := keyList[2]
+
+    var update string
+
+    for k, vInterface := range cache.Data {
+        if k == collection {
+            switch v := vInterface.(type) {
+            case []interface{}:
+                for i, element := range v {
+                    fmtElem := fmt.Sprintf("%v", element)
+
+                    // instead of this add unique keys
+                    // like wayyy slow yo.
+
+                    if strings.Contains(fmtElem, uniqueKey) {
+                        oldValue := cache.Data[k].([]interface{})[i].(map[string]interface{})[keyToUpdate]
+                        cache.Data[k].([]interface{})[i].(map[string]interface{})[keyToUpdate] = value // this will give you the list element you need to append
+                        update = fmt.Sprintf("%v Index: %v from %v to %v", k+" "+uniqueKey+" "+keyToUpdate, strconv.Itoa(i), oldValue, value)
+                        connection.Write([]byte("Updated "+update))
+                        return
+                    }
+                }
+            case map[string]interface{}: update = "hit the map"
+            default: update = "nothing"
+            }
+        }
+    }
+    connection.Write([]byte("Updated "+update))
+}
+
 func update(connection net.Conn, key, value string) {
     
-    _, ok := lock.nested[key]        // check if key is valid
+    _, ok := cache.Data[key]        // check if key is valid
     if !ok {
         connection.Write([]byte(key+" not yet added. Please set"))
     } else {
-        lock.Lock()
-        lock.nested[key] = value     // overwrite
-        lock.Unlock()
+        cache.Lock()
+        cache.Data[key] = value     // overwrite
+        cache.Unlock()
         connection.Write([]byte("Updated "+key+":"+value))
     }
 }
@@ -308,13 +375,61 @@ func load(connection net.Conn, filename string) {
         
         decoded := decodeJSON(fileContents)
 
-        lock.Lock()
-        insert(decoded, lock.nested)
-        lock.Unlock()
+        cache.Lock()
+        insert(decoded, cache.Data)
+        cache.Unlock()
 
         connection.Write([]byte("Loaded "+filename+" to collection "))
     } 
 }
+
+
+// func cacheKeys(nested map[string]interface{}) {
+//     for key, value := range nested {
+//         if _, ok := value.([]interface{}); ok {
+//             tmpArray := map[string]struct{}{}
+//             for _, k := range value.([]interface{}) {
+//                 if _, ok := k.(map[string]interface{}); ok {
+//                     for kk := range k.(map[string]interface{}) {
+//                         tmpArray[kk] = struct{}{}
+//                     }
+//                 }
+//             }
+//             keyList[key] = tmpArray    
+//         } else {
+//             fmt.Println("Nothing did")
+//         }
+//     }
+// }
+
+// func cacheKeys(nested, cacheKeys map[string]interface{}) map[string]struct{} {
+
+//     for key, value := range nested {
+//         switch v := value.(type) {
+//             // case float64: nested[key] = v
+//             // case string: nested[key] = strings.ToUpper(v)
+//             // case bool: nested[key] = v
+//             // case nil: nested[key] = nil
+//             case map[string]interface{}:  
+//                 tmp := map[string]struct{}{}
+//                 keyList[key] = cacheKeys(v, tmp)               
+//             case []interface{}:
+//                 tmpArray := []interface{}{}
+//                 for _, val := range v {
+//                     if _, ok := val.(map[string]interface{}); ok {
+//                         tmp := map[string]interface{}{} 
+//                         tmpArray = append(tmpArray, insert(val.(map[string]interface{}), tmp))
+//                     } else {
+//                         tmpArray = append(tmpArray, val)
+//                     }
+//                 }
+//                 nested[key] = tmpArray
+//             default:
+//                 fmt.Println("Missed something", v)
+//         }
+//     }
+//     return cacheKeys
+// }
 
 func decodeJSON(encodedJSON []byte) map[string]interface{} {
     decoded := map[string]interface{} {}
@@ -325,17 +440,18 @@ func decodeJSON(encodedJSON []byte) map[string]interface{} {
     return decoded
 }
 
-func insert(inputMap, nested map[string]interface{}) map[string]interface{} {
+func insert(inputMap, Data map[string]interface{}) map[string]interface{} {
 
     for k, value := range inputMap {
         key := strings.ToUpper(k)
         switch v := value.(type) {
-            case float64: nested[key] = v
-            case string: nested[key] = strings.ToUpper(v)
-            case bool: nested[key] = v
+            case float64: Data[key] = v
+            case string: Data[key] = strings.ToUpper(v)
+            case bool: Data[key] = v
+            case nil: Data[key] = nil
             case map[string]interface{}:  
                 tmp := map[string]interface{}{}
-                nested[key] = insert(v, tmp)
+                Data[key] = insert(v, tmp)
             case []interface{}:
                 tmpArray := []interface{}{}
                 for _, val := range v {
@@ -346,12 +462,12 @@ func insert(inputMap, nested map[string]interface{}) map[string]interface{} {
                         tmpArray = append(tmpArray, val)
                     }
                 }
-                nested[key] = tmpArray
+                Data[key] = tmpArray
             default:
                 fmt.Println("Missed something", v)
         }
     }
-    return nested
+    return Data
 }
 
 func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[string]interface{}) {
@@ -363,6 +479,8 @@ func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[strin
             (*flattened)[key] = value.(float64)
         } else if _, ok := value.(bool); ok {
             (*flattened)[key] = value.(bool)
+        } else if value == nil {
+            (*flattened)[key] = nil
         } else if _, ok := value.([]interface{}); ok {
             for i := 0; i<len(value.([]interface{})); i++ {
                 if _, ok := value.([]string); ok {
@@ -383,7 +501,7 @@ func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[strin
 
 func encode() string {
     tmp := []string{}
-    for key, value := range lock.nested {
+    for key, value := range cache.Data {
         data := "\""+key+"\": "+formatOutput(value, "")
         tmp = append(tmp, data)
     }
@@ -395,28 +513,24 @@ func encode() string {
 
 func show(connection net.Conn, key string) {
     switch key {
-        case "KEYS": {
-            if len(lock.nested) == 0 {
-                connection.Write([]byte("NO KEYS TO SHOW YO"))
+        case "COLLECTIONS": {
+            if len(cache.Data) == 0 {
+                connection.Write([]byte("NO COLLECTIONS ADDED"))
                 return
             } else {
-                keys := []string{}
-                for k := range lock.nested {
-                    keys = append(keys, k)
-                    sort.Strings(keys)
+                for k := range cache.Data {
+                    connection.Write([]byte(k+"\n"))
                 }
-                connection.Write([]byte(strings.Join(keys, "\n")))
             }
         }
-
         case "DATABASE": connection.Write([]byte(DATABASE))
         case "DATA": {
-            if len(lock.nested) == 0 {
-                connection.Write([]byte("NO DATA TO SHOW YO"))
+            if len(cache.Data) == 0 {
+                connection.Write([]byte("NO DATA ADDED"))
                 return
             } else {
-                // fmtData := fmt.Sprintf("%v", lock.nested)
-                fmtData := formatOutput(lock.nested, "")
+                // fmtData := fmt.Sprintf("%v", cache.Data)
+                fmtData := formatOutput(cache.Data, "")
                 connection.Write([]byte(fmtData))
             }
         }
@@ -425,9 +539,9 @@ func show(connection net.Conn, key string) {
 }
 
 func remove(connection net.Conn, key string) {
-    _, ok := lock.nested[key]         // check if key is valid
+    _, ok := cache.Data[key]         // check if key is valid
     if ok {
-        delete(lock.nested, key)
+        delete(cache.Data, key)
         connection.Write([]byte(key+" has been removed"))
     } else {
         connection.Write([]byte("No key: "+key))

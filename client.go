@@ -13,7 +13,7 @@ var DATABASE string
 
 const (
     PORT = ":4127"
-    BUFFER_SIZE = 1e9
+    BUFFER_SIZE = 1024
 )
 
 func main() {
@@ -59,12 +59,16 @@ func main() {
 
             connection.Write([]byte(message))
 
-            inputEnd, err := connection.Read(buf[:])
-            if err != nil {
-                return
+            for {
+                inputEnd, err := connection.Read(buf[:])
+                fmt.Printf("%s\n", string(buf[0:inputEnd]))
+                if inputEnd < BUFFER_SIZE {
+                    break
+                }
+                if err != nil {
+                    return
+                }            
             }
-
-            fmt.Printf("%s\n", string(buf[0:inputEnd]))
         }
 
         if message == "QUIT" {
