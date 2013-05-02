@@ -73,7 +73,7 @@ func quit(connection net.Conn) {
 func save(connection net.Conn) {
 
     data := encode()
-    disk := openDisk("outputs/output")
+    disk := openDisk(DATABASE)
 
     disk.Seek(0,END)
     _, err := disk.Write([]byte(data))
@@ -83,7 +83,7 @@ func save(connection net.Conn) {
 
     clearLog(LOGFILE)   // can clear the log once written to stable storage
     disk.Close()
-    connection.Write([]byte("DB has been saved. "))
+    // connection.Write([]byte("DB has been saved. "))
 
 }
 
@@ -119,6 +119,7 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
         //     VSearch(connection, value)
         case "SET": set(connection, key, value)
         case "UPDATE":  update(connection, key, value)
+        case "ADDTO": addto(connection, key, value)
         case "NUPDATE": updateNested(connection, key, value)
         case "LOAD": load(connection, key)
         case "SHOW": show(connection, key)
@@ -251,10 +252,10 @@ func formatOutput(vInterface interface{}, fmtValue string) string {
         case map[string]interface{}:
             tmp := []string{}
             for k, v := range value {
-                tmpfmtValue := "{"+"\""+k+"\""+": "+formatOutput(v, fmtValue)+"}"
+                tmpfmtValue := "\""+k+"\""+": "+formatOutput(v, fmtValue)
                 tmp = append(tmp, tmpfmtValue)
             }
-            fmtValue = strings.Join(tmp, ", ")
+            fmtValue = "{"+strings.Join(tmp, ", ")+"}"
         default: fmt.Println("Error Occured")
     }
     return fmtValue
@@ -276,7 +277,8 @@ func search(connection net.Conn, key string) {
     if len(values) == 0 {
         connection.Write([]byte("No values found"))
     } else {
-        connection.Write([]byte(strings.Join(values, "\n")+"\n<<Values: "+strconv.Itoa(len(values))+">>"))
+        connection.Write([]byte(strings.Join(values, "\n")))
+            //+"\n<<Values: "+strconv.Itoa(len(values))+">>"))
     }
 }
 
@@ -368,6 +370,52 @@ func update(connection net.Conn, key, value string) {
     }
 }
 
+func addto(connection net.Conn, key, value string) {
+    
+    _, ok := cache.Data[key]        // check if key is valid
+    if !ok {
+        connection.Write([]byte(key+" not yet added. Please set"))
+    } else {
+        cache.Lock()
+        oldValue := cache.Data[key]
+
+        tmpnewValue := formatOutput(oldValue, "")
+        lastChar := tmpnewValue[len(tmpnewValue)-1:]
+        tmpnewValue = tmpnewValue[0:len(tmpnewValue)-1]
+        newValue := tmpnewValue+", "+value+lastChar
+
+        tmpMap := make(map[string]interface{})
+        
+
+        fmt.Println(tmpMap)
+
+        fmt.Println("==========================BEFORE REINSERT=========================", cache.Data)
+        
+        // decoded has to be 
+        decoded := decodeJSONArray([]byte(newValue))
+        tmpMap[key] = decoded
+        insert(tmpMap, cache.Data)
+
+        fmt.Println("==========================AFTER REINSERT=========================", cache.Data)
+
+        // cache.Data[key] = newValue     // overwrite
+        cache.Unlock()
+        connection.Write([]byte("Updated "+key+":"+newValue))
+    }
+
+    save(connection)
+    //load(connection, DATABASE)
+}
+
+func decodeJSONArray(encodedJSON []byte) []interface{} {
+    decoded := []interface{} {}
+    err := json.Unmarshal(encodedJSON, &decoded)
+    if err != nil {
+        log.Fatal(err)
+    }
+    return decoded
+}
+
 func load(connection net.Conn, filename string) {
     
     if filename == "" {
@@ -382,14 +430,18 @@ func load(connection net.Conn, filename string) {
             connection.Write([]byte("Invalid file"))
             return
         }
-        
-        decoded := decodeJSON(fileContents)
 
-        cache.Lock()
-        insert(decoded, cache.Data)
-        cache.Unlock()
+        if string(fileContents) == "" {
+            connection.Write([]byte("No existing data to load."))
+        } else {
+            decoded := decodeJSON(fileContents)
 
-        connection.Write([]byte("Loaded "+filename+" to collection "))
+            cache.Lock()
+            insert(decoded, cache.Data)
+            cache.Unlock()
+
+            connection.Write([]byte("Loaded "+filename+" to collection "))
+        } 
     } 
 }
 
@@ -458,7 +510,7 @@ func insert(inputMap, Data map[string]interface{}) map[string]interface{} {
             case float64: Data[key] = v
             case string: Data[key] = strings.ToUpper(v)
             case bool: Data[key] = v
-            case nil: Data[key] = nil
+            case nil: Data[key] = "nil"
             case map[string]interface{}:  
                 tmp := map[string]interface{}{}
                 Data[key] = insert(v, tmp)
@@ -516,6 +568,7 @@ func encode() string {
         tmp = append(tmp, data)
     }
     
+    // WHEN YOU ADDTO IT ADDS THAT AS A STRING AND ADDS EXTRA QUOTES -- DO SOMETHING ABOUT THIS // RE-ADD INTO THE DICTIONARY
     jsonString = "{"+strings.Join(tmp, ", ")+"}"
 
     return jsonString
@@ -525,7 +578,7 @@ func show(connection net.Conn, key string) {
     switch key {
         case "COLLECTIONS": {
             if len(cache.Data) == 0 {
-                connection.Write([]byte("NO COLLECTIONS ADDED"))
+                connection.Write([]byte("NO COLLECTIONS AD`D"))
                 return
             } else {
                 for k := range cache.Data {
