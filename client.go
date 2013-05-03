@@ -39,8 +39,8 @@ func main() {
         if err != nil {
             return
         }
-
         fmt.Printf("%s\n", string(buf[0:inputEnd]))
+        
     } else {
         fmt.Println("Please load a database")
     }

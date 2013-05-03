@@ -48,7 +48,7 @@ func echoServer(connection net.Conn) {      // this function does too many thing
         message := string(dataInput)
 
         instruction, key, value := parseRequest(message)
-        if instruction == "SET" || instruction == "UPDATE" || instruction == "REMOVE" {
+        if instruction == "SET" || instruction == "UPDATE" || instruction == "NESTEDUPDATE" || instruction == "REMOVE" || instruction == "UPDATEINT" || instruction == "ADDTO" {
             saveLog(dataInput)
         }
 
@@ -119,17 +119,53 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
         //     VSearch(connection, value)
         case "SET": set(connection, key, value)
         case "UPDATE":  update(connection, key, value)
+        case "UPDATEINT": 
+            intValue, _ := strconv.Atoi(value)
+            updateInt(connection, key, intValue)
         case "ADDTO": addto(connection, key, value)
-        case "NUPDATE": updateNested(connection, key, value)
+        case "NESTEDUPDATE": updateNested(connection, key, value)
         case "LOAD": load(connection, key)
         case "SHOW": show(connection, key)
         case "REMOVE": remove(connection, key)
         case "QUIT": quit(connection)
         case "SAVE": save(connection)
         case "SEARCH": search(connection, key)
+        // case "APPLYLOG": applyLog(connection)
         default: connection.Write([]byte("Instruction not recognized"))
     }
 }
+
+// func applyLog(connection net.Conn) {
+
+//     r := bufio.NewReader(LOGFILE)
+//     for line, _, err := r.ReadString('\n'); err != io.EOF {
+//         connection.Write([]byte(line))
+//     }
+// }
+
+
+
+// func openDisk(filename string) (disk *os.File) {
+//     var err error
+//     disk, err = os.OpenFile(filename, os.O_TRUNC|os.O_RDWR|os.O_APPEND, 0666)
+//     if err != nil {
+//         fmt.Fprintf(os.Stderr, "%v\n", err)
+//         return
+//     }
+
+//     return
+// }
+
+// func saveLog(dataInput []byte) { 
+//     disk := openDisk(LOGFILE)
+//     defer disk.Close()
+
+//     disk.Seek(0,END)
+//     _, err := disk.Write(dataInput)
+//     if err != nil {
+//         log.Fatal(err)
+//     }
+// }
 
 func KSearch(connection net.Conn, key, value string) string {
     // only works for string values
@@ -240,6 +276,7 @@ func formatOutput(vInterface interface{}, fmtValue string) string {
     switch value := vInterface.(type) {
         case string: fmtValue = "\""+value+"\""
         case float64: fmtValue = fmt.Sprintf("%v", value)
+        case int: fmtValue = fmt.Sprintf("%v", value)
         case bool: fmtValue = fmt.Sprintf("%v", value)
         case nil: fmtValue = fmt.Sprintf("%v", value)
         case []interface{}:
@@ -370,41 +407,64 @@ func update(connection net.Conn, key, value string) {
     }
 }
 
-func addto(connection net.Conn, key, value string) {
+func updateInt(connection net.Conn, key string, value int) {
     
     _, ok := cache.Data[key]        // check if key is valid
     if !ok {
         connection.Write([]byte(key+" not yet added. Please set"))
     } else {
         cache.Lock()
-        oldValue := cache.Data[key]
+        cache.Data[key] = value     // overwrite
+        cache.Unlock()
+        strValue := strconv.Itoa(value)
+        connection.Write([]byte("Updated "+key+":"+strValue))
+    }
+}
 
+func addto(connection net.Conn, key, value string) {
+    
+    _, ok := cache.Data[key]        // check if key is valid
+    if !ok {
+        connection.Write([]byte(key+" not yet added. Please set"))
+    } else {
+
+        oldValue := cache.Data[key]
         tmpnewValue := formatOutput(oldValue, "")
         lastChar := tmpnewValue[len(tmpnewValue)-1:]
         tmpnewValue = tmpnewValue[0:len(tmpnewValue)-1]
         newValue := tmpnewValue+", "+value+lastChar
-
-        tmpMap := make(map[string]interface{})
-        
-
-        fmt.Println(tmpMap)
-
-        fmt.Println("==========================BEFORE REINSERT=========================", cache.Data)
-        
-        // decoded has to be 
+        tmpMap := make(map[string]interface{})        
         decoded := decodeJSONArray([]byte(newValue))
         tmpMap[key] = decoded
+        cache.Lock()
         insert(tmpMap, cache.Data)
-
-        fmt.Println("==========================AFTER REINSERT=========================", cache.Data)
-
-        // cache.Data[key] = newValue     // overwrite
         cache.Unlock()
         connection.Write([]byte("Updated "+key+":"+newValue))
     }
-
     save(connection)
-    //load(connection, DATABASE)
+}
+
+func removefrom(connection net.Conn, key, value string) {
+    
+    _, ok := cache.Data[key]        // check if key is valid
+    if !ok {
+        connection.Write([]byte(key+" not yet added. Please set"))
+    } else {
+
+        oldValue := cache.Data[key]
+        tmpnewValue := formatOutput(oldValue, "")
+        lastChar := tmpnewValue[len(tmpnewValue)-1:]
+        tmpnewValue = tmpnewValue[0:len(tmpnewValue)-1]
+        newValue := tmpnewValue+", "+value+lastChar
+        tmpMap := make(map[string]interface{})        
+        decoded := decodeJSONArray([]byte(newValue))
+        tmpMap[key] = decoded
+        cache.Lock()
+        insert(tmpMap, cache.Data)
+        cache.Unlock()
+        connection.Write([]byte("Updated "+key+":"+newValue))
+    }
+    save(connection)
 }
 
 func decodeJSONArray(encodedJSON []byte) []interface{} {
@@ -622,8 +682,19 @@ func openDisk(filename string) (disk *os.File) {
     return
 }
 
+func openLog(filename string) (disk *os.File) {
+    var err error
+    disk, err = os.OpenFile(filename, os.O_RDWR|os.O_APPEND, 0666)
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "%v\n", err)
+        return
+    }
+
+    return
+}
+
 func saveLog(dataInput []byte) { 
-    disk := openDisk(LOGFILE)
+    disk := openLog(LOGFILE)
     defer disk.Close()
 
     disk.Seek(0,END)
