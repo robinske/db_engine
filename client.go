@@ -7,6 +7,7 @@ import (
     "bufio"
     "os"
     "fmt"
+    "io/ioutil"
 )
 
 var DATABASE string
@@ -14,7 +15,38 @@ var DATABASE string
 const (
     PORT = ":4127"
     BUFFER_SIZE = 1024
+    LOGFILE = "outputs/log.txt"
 )
+
+func applyLog(connection net.Conn) {
+
+    file, err := os.Open(LOGFILE)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    defer file.Close()
+
+    buf := make([]byte, BUFFER_SIZE)
+
+    fileContents, err := ioutil.ReadFile(LOGFILE)
+    fileString := string(fileContents)
+
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fileArray := strings.Split(fileString, "\n")
+
+    for _, line := range fileArray {
+        connection.Write([]byte(line))
+        inputEnd, err := connection.Read(buf[:])
+        if err != nil {
+            return
+        }
+        fmt.Printf("%s\n", string(buf[0:inputEnd]))
+    }
+}
 
 func main() {
 
@@ -40,7 +72,7 @@ func main() {
             return
         }
         fmt.Printf("%s\n", string(buf[0:inputEnd]))
-        
+
     } else {
         fmt.Println("Please load a database")
     }
@@ -69,6 +101,10 @@ func main() {
                     return
                 }            
             }
+        }
+
+        if message == "APPLYLOG" {
+            applyLog(connection)
         }
 
         if message == "QUIT" {
