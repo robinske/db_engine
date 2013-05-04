@@ -1,0 +1,131 @@
+<html>
+	<head>
+		<meta charset="utf-8">
+			<title>Zebulon</title>
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+				<!-- Loading Bootstrap -->
+				<link href="static/css/bootstrap.css" rel="stylesheet">
+
+				<!-- Loading Flat UI -->
+				<link href="static/css/flat-ui.css" rel="stylesheet">
+				<link rel="icon" href="static/images/favicon.ico">
+
+				<!-- HTML5 shim, for IE6-8 support of HTML5 elements. All other JS at the end of file. -->
+				<!--[if lt IE 9]>
+				<script src="static/js/html5shiv.js"></script>
+				<![endif]-->
+	</head>
+	<body>
+		</br>
+		</br>
+		<div class="container">
+			<center>
+				<div><img src="static/images/illustrations/retina.png"></img></div>
+				<h1>Welcome to Zebulon
+				</br><small>A to do list application</small></h1>
+			</center>
+		</div>
+		</br>
+		</br>
+		<div class="container">	
+			<div class="todo mrm">
+        <div class="todo-search">
+        <form method = "POST" action="/new_task" id="newTask">
+          <input class="todo-search-field" name="new_task_title"type="search" value="" placeholder="What else would you like to accomplish?"></input>
+          </form>
+        </div>
+				<ul>
+					{% for task in tasks %} 
+					{% if task['SHOW'] == "YES" %}
+					{% if task['COMPLETED_AT'] == "NIL" %}
+					<li>
+					{% else %}
+					<li class="todo-done">
+					{% endif %}
+						<div class="todo-icon fui-new-16"></div>
+						<div class="todo-remove fui-cross-16" id="{{task['TASK_ID']}}"></div>
+						<div class="todo-content">
+							<h4 class="todo-name ajax_todo" id="{{task['TASK_ID']}}">{{ task['TITLE']|title }}</h4>
+							<!-- <i></br></i> -->
+						</div>
+					</li>
+					{% endif %}
+					{% endfor %}
+				</ul>
+			</div>
+		</div>
+
+		</br>
+		</br>
+
+    <footer>
+      <div class="container">
+        <div class="row">
+          <div class="span7">
+            <h3 class="footer-title">About the App</h3>
+            <p>This web application was built on top of my <a href="http://www.hackbrightacademy.com">Hackbright Academy</a> final project, a distributed database engine written in <a href="http://www.golang.org">Go.</a>
+            </br></br><a href="https://github.com/robinske/db_engine">See the code here</a>
+            </p>
+          </div> <!-- /span8 -->
+
+          <div class="span5">
+            <div class="footer-banner">
+              <h3 class="footer-title">For More Information</h3>
+              <ul>
+                <li><a href="https://github.com/robinske">Github</a></li>
+                <li><a href="http://www.linkedin.com/in/kelleyrobinson">LinkedIn</a></li>
+                <li><a href="https://twitter.com/KelleyRobinson">Twitter</a></li>
+                <li><a href="http://kllrobinson.wordpress.com/">Blog</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Load JS here for greater good =============================-->
+    <script src="static/js/jquery-1.8.2.min.js"></script>
+    <script src="static/js/jquery-ui-1.10.0.custom.min.js"></script>
+    <script src="static/js/jquery.dropkick-1.0.0.js"></script>
+    <script src="static/js/custom_checkbox_and_radio.js"></script>
+    <script src="static/js/custom_radio.js"></script>
+    <script src="static/js/jquery.tagsinput.js"></script>
+    <script src="static/js/bootstrap-tooltip.js"></script>
+    <script src="static/js/jquery.placeholder.js"></script>
+    <script src="http://vjs.zencdn.net/c/video.js"></script>
+    <script src="static/js/application.js"></script>
+    <!--[if lt IE 8]>
+      <script src="js/icon-font-ie7.js"></script>
+      <script src="js/icon-font-ie7-24.js"></script>
+    <![endif]-->
+    <script>
+			$(".ajax_todo").on("click", function(event){
+	    	$.ajax({
+					url: "/complete_task",
+					type: "post",
+					data: {"task_id": event.currentTarget.id}, 
+					success: function(response){
+						console.log(response);
+					}
+				});
+			});
+		</script>
+		<script>
+			$(".todo-remove").on("click", function(event){
+				event.stopPropagation();
+				console.log(event.currentTarget.id)
+	    	$.ajax({
+					url: "/remove_task",
+					type: "post",
+					data: {"task_id": event.currentTarget.id}, 
+					success: function(response){
+						event.currentTarget.parentNode.parentNode.removeChild(event.currentTarget.parentNode)
+						console.log(response);
+					}
+
+				});
+			});
+		</script>
+	</body>
+</html>
