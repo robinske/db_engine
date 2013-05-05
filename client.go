@@ -20,13 +20,6 @@ const (
 
 func applyLog(connection net.Conn) {
 
-    file, err := os.Open(LOGFILE)
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    defer file.Close()
-
     buf := make([]byte, BUFFER_SIZE)
 
     fileContents, err := ioutil.ReadFile(LOGFILE)
@@ -37,15 +30,33 @@ func applyLog(connection net.Conn) {
     }
 
     fileArray := strings.Split(fileString, "\n")
+    fileArray = append(fileArray, "CLEARLOG")
 
     for _, line := range fileArray {
-        connection.Write([]byte(line))
-        inputEnd, err := connection.Read(buf[:])
-        if err != nil {
-            return
+        if line != "" {
+            connection.Write([]byte(line))
+            inputEnd, err := connection.Read(buf[:])
+            if err != nil {
+                return
+            }
+            fmt.Printf("%s\n", string(buf[0:inputEnd]))
         }
-        fmt.Printf("%s\n", string(buf[0:inputEnd]))
     }
+}
+
+func isLogEmpty() bool {
+
+    fileContents, err := ioutil.ReadFile(LOGFILE)
+    fileString := string(fileContents)
+
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    if fileString == "" {
+        return true
+    }
+    return false
 }
 
 func main() {
@@ -73,6 +84,9 @@ func main() {
         }
         fmt.Printf("%s\n", string(buf[0:inputEnd]))
 
+        if !isLogEmpty() {
+            applyLog(connection)
+        }
     } else {
         fmt.Println("Please load a database")
     }

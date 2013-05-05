@@ -507,7 +507,6 @@ h6 {
 @media only screen and (-webkit-min-device-pixel-ratio: 2), only screen and (-webkit-min-device-pixel-ratio: 1.5), only screen and (-moz-min-device-pixel-ratio: 2), only screen and (-o-min-device-pixel-ratio: 3 / 2), only screen and (-o-min-device-pixel-ratio: 2 / 1), only screen and (min--moz-device-pixel-ratio: 1.5), only screen and (min-device-pixel-ratio: 1.5), only screen and (min-device-pixel-ratio: 2) {
   .logo {
     background-image: url("../images/demo/logo-mask-2x.png"); }
-
   .demo-browser {
     background-image: url("../images/demo/browser-2x.png"); } }
 .navbar {
@@ -527,7 +526,6 @@ h6 {
     .navbar .nav > li > ul:before {
       content: "";
       border-style: solid;
-      border-width: 0 9px 9px 9px;
       border-color: transparent transparent #34495e transparent;
       height: 0px;
       position: absolute;
@@ -555,7 +553,6 @@ h6 {
       visibility: visible;
       display: block\9; }
   .navbar .nav ul {
-    border-radius: 4px;
     left: 15px;
     list-style-type: none;
     margin-left: 0;
@@ -580,7 +577,6 @@ h6 {
       background-color: #34495e;
       padding: 0 3px 3px; }
       .navbar .nav ul li:first-child {
-        border-radius: 4px 4px 0 0;
         padding-top: 3px; }
       .navbar .nav ul li:last-child {
         border-radius: 0 0 4px 4px; }
@@ -588,7 +584,6 @@ h6 {
         background-color: #1abc9c;
         color: white; }
     .navbar .nav ul a {
-      border-radius: 2px;
       color: white;
       display: block;
       font-size: 14px;
@@ -601,9 +596,6 @@ h6 {
   border: none;
   padding-left: 4px;
   padding-right: 4px;
-  -webkit-border-radius: 6px;
-  -moz-border-radius: 6px;
-  border-radius: 6px;
   filter: progid:DXImageTransform.Microsoft.gradient(enabled = false); }
 
 .navbar-inverse .navbar-inner {
@@ -620,7 +612,6 @@ h6 {
 
 .navbar-unread {
   background-color: #e74c3c;
-  border-radius: 30px;
   color: white;
   display: none;
   font-size: 12px;
@@ -646,7 +637,6 @@ h6 {
 .dk_toggle {
   background-color: #1abc9c;
   color: white;
-  border-radius: 6px;
   overflow: hidden;
   padding: 11px 45px 11px 13px;
   text-decoration: none;
@@ -669,7 +659,6 @@ h6 {
 .select-icon {
   background: #1abc9c url("../images/select/toggle.png") no-repeat right center;
   border-left: 2px solid rgba(52, 73, 94, 0.15);
-  border-radius: 0 6px 6px 0;
   height: 100%;
   position: absolute;
   right: 0;

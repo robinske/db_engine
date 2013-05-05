@@ -16,6 +16,41 @@ def connect(DATABASE):
 def save():
 	sock.sendall("SAVE")
 
+def apply_log():
+
+#     fileContents, err := ioutil.ReadFile(LOGFILE)
+#     fileString := string(fileContents)
+
+#     fileArray := strings.Split(fileString, "\n")
+#     fileArray = append(fileArray, "CLEARLOG")
+
+#     for _, line := range fileArray {
+#         if line != "" {
+#             connection.Write([]byte(line))
+#             inputEnd, err := connection.Read(buf[:])
+#             if err != nil {
+#                 return
+#             }
+#             fmt.Printf("%s\n", string(buf[0:inputEnd]))
+#         }
+#     }
+# }
+
+def is_log_empty():
+
+#     fileContents, err := ioutil.ReadFile(LOGFILE)
+#     fileString := string(fileContents)
+
+#     if err != nil {
+#         log.Fatal(err)
+#     }
+
+#     if fileString == "" {
+#         return true
+#     }
+#     return false
+# }
+
 def query(instruction):
 	
 	while True:

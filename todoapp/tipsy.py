@@ -46,5 +46,5 @@ def add_task():
     return redirect("/")
 
 if __name__ == "__main__":
-    model.connect_db("stage1/tasks.db")
+    model.connect_db("todoapp/tasks.db")
     app.run(debug=True)

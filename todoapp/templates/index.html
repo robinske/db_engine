@@ -110,8 +110,6 @@
 					}
 				});
 			});
-		</script>
-		<script>
 			$(".todo-remove").on("click", function(event){
 				event.stopPropagation();
 				console.log(event.currentTarget.id)
@@ -123,7 +121,6 @@
 						event.currentTarget.parentNode.parentNode.removeChild(event.currentTarget.parentNode)
 						console.log(response);
 					}
-
 				});
 			});
 		</script>

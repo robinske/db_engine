@@ -23,6 +23,7 @@ var keyList = make(map[string]map[string]struct{})
 var lkey = ""
 var jsonString = ""
 var DATABASE string
+var counter = 0
 
 const (
     PORT = ":4127"
@@ -96,6 +97,7 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
         case "QUIT": quit(connection)
         case "SEARCH": search(connection, key)
         case "APPLYLOG": connection.Write([]byte("Updating with most recent log"))
+        case "CLEARLOG": clearLog(LOGFILE)
         default: connection.Write([]byte("Instruction not recognized"))
     }
 }
@@ -481,6 +483,9 @@ func openLog(filename string) (disk *os.File) {
 }
 
 func saveLog(dataInput []byte) { 
+
+    counter++
+
     disk := openLog(LOGFILE)
     defer disk.Close()
 
@@ -489,6 +494,10 @@ func saveLog(dataInput []byte) {
     _, err := disk.Write(dataInput)
     if err != nil {
         log.Fatal(err)
+    }
+
+    if counter%5 == 0 {
+        save()
     }
 }
 
@@ -506,7 +515,7 @@ func clearLog(filename string) {
 func quit(connection net.Conn) {
 
     if DATABASE != "" {
-        save(connection)
+        save()
         connection.Write([]byte("Program exiting"))       
     } else {
         connection.Write([]byte("No database set, changes have not been saved. Program exiting"))
@@ -515,7 +524,7 @@ func quit(connection net.Conn) {
     os.Exit(0)
 }
 
-func save(connection net.Conn) {
+func save() {
 
     data := encode()
     disk := openDisk(DATABASE)
