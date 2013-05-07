@@ -38,15 +38,19 @@
 				<ul>
 					{% for task in tasks %} 
 					{% if task['SHOW'] == "YES" %}
-					{% if task['COMPLETED_AT'] == "NIL" %}
-					<li>
+					{% if task['COMPLETED'] == "NIL" %}
+					<li class="ajax_todo" id="{{task['TASK_ID']}}">
 					{% else %}
-					<li class="todo-done">
+					<li class="todo-done ajax_todo" id="{{task['TASK_ID']}}">
 					{% endif %}
 						<div class="todo-icon fui-new-16"></div>
 						<div class="todo-remove fui-cross-16" id="{{task['TASK_ID']}}"></div>
 						<div class="todo-content">
-							<h4 class="todo-name ajax_todo" id="{{task['TASK_ID']}}">{{ task['TITLE']|title }}</h4>
+							{% if task['TITLE'] == "FIND THE MEANING OF LIFE" %}
+							<h4 class="todo-name">42</h4>
+							{% else %}
+							<h4 class="todo-name">{{ task['TITLE']|title }}</h4>
+							{% endif %}
 							<!-- <i></br></i> -->
 						</div>
 					</li>
@@ -62,16 +66,16 @@
     <footer>
       <div class="container">
         <div class="row">
-          <div class="span7">
-            <h3 class="footer-title">About the App</h3>
+          <div class="span6">
+            <h4 class="footer-title"><strong>About the App</strong></h4>
             <p>This web application was built on top of my <a href="http://www.hackbrightacademy.com">Hackbright Academy</a> final project, a distributed database engine written in <a href="http://www.golang.org">Go.</a>
             </br></br><a href="https://github.com/robinske/db_engine">See the code here</a>
             </p>
           </div> <!-- /span8 -->
 
-          <div class="span5">
+          <div class="span4">
             <div class="footer-banner">
-              <h3 class="footer-title">For More Information</h3>
+              <h4 class="footer-title"><strong>For More Information</strong></h4>
               <ul>
                 <li><a href="https://github.com/robinske">Github</a></li>
                 <li><a href="http://www.linkedin.com/in/kelleyrobinson">LinkedIn</a></li>
@@ -100,15 +104,19 @@
       <script src="js/icon-font-ie7-24.js"></script>
     <![endif]-->
     <script>
+
 			$(".ajax_todo").on("click", function(event){
-	    	$.ajax({
-					url: "/complete_task",
-					type: "post",
-					data: {"task_id": event.currentTarget.id}, 
-					success: function(response){
-						console.log(response);
-					}
-				});
+	    	// $('event.currentTarget.id').bind('click', false);
+	    	if (!$(this).hasClass("todo-done")){
+		    	$.ajax({
+						url: "/complete_task",
+						type: "post",
+						data: {"task_id": event.currentTarget.id}, 
+						success: function(response){
+	        		console.log(response);
+						}
+					});
+				}
 			});
 			$(".todo-remove").on("click", function(event){
 				event.stopPropagation();

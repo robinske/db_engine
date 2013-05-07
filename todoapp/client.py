@@ -4,52 +4,44 @@ import string
 import unicodedata
 
 HOST, PORT = "localhost", 4127
+LOGFILE = "../outputs/log.txt"
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect((HOST, PORT))
 
 def connect(DATABASE):
-	sock.sendall("DATABASE:> "+DATABASE)
-	r = sock.recv(1024)
-	print "{}".format(r)
+		sock.sendall("DATABASE:> "+DATABASE)
+		
+		r = sock.recv(4096)
+		print "{}".format(r)
+		
+		apply_log()
+		# sock.sendall("APPLYLOG")
+		
+		# r = sock.recv(4096)
+		# print "{}".format(r)
+
+		return
 
 def save():
-	sock.sendall("SAVE")
+		sock.sendall("SAVE")
 
 def apply_log():
+		f = open(LOGFILE)
+		
+		filetext = f.read()
+		
+		filelist = filetext.split("\n")
 
-#     fileContents, err := ioutil.ReadFile(LOGFILE)
-#     fileString := string(fileContents)
-
-#     fileArray := strings.Split(fileString, "\n")
-#     fileArray = append(fileArray, "CLEARLOG")
-
-#     for _, line := range fileArray {
-#         if line != "" {
-#             connection.Write([]byte(line))
-#             inputEnd, err := connection.Read(buf[:])
-#             if err != nil {
-#                 return
-#             }
-#             fmt.Printf("%s\n", string(buf[0:inputEnd]))
-#         }
-#     }
-# }
-
-def is_log_empty():
-
-#     fileContents, err := ioutil.ReadFile(LOGFILE)
-#     fileString := string(fileContents)
-
-#     if err != nil {
-#         log.Fatal(err)
-#     }
-
-#     if fileString == "" {
-#         return true
-#     }
-#     return false
-# }
+		if len(filelist) > 0:
+				for line in filelist:
+							if line != "":
+									sock.send(line)
+									r = sock.recv(1024)
+									print "{}".format(r)
+		f.close()
+		sock.send("SAVE")
+		return
 
 def query(instruction):
 	
@@ -62,7 +54,6 @@ def query(instruction):
 		    received = sock.recv(4096)
 		    return_data = "{}".format(received)
 
-		    print return_data
 		    return return_data
 
 		if data == "QUIT":

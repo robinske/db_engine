@@ -6,7 +6,7 @@ import unicodedata
 
 
 def connect_db(database):
-    return client.connect(database)
+    client.connect(database)
 
 def save_db():
     return client.save()
@@ -17,10 +17,10 @@ def query(instruction):
 def show_tasks():
     return client.query("GET TASKS")
 
-def new_task(title, description, task_id):   
+def new_task(title, task_id):   
     normalized_title = unicodedata.normalize("NFKD", title).encode("ascii", "ignore")
 
-    stringquery = """addto tasks {"task_id":"%s", "title":"%s", "description":"%s", "completed_at":"NIL", "show": "YES"}""" % (task_id, normalized_title, description)
+    stringquery = """addto tasks {"task_id":"%s", "title":"%s", "completed":"NIL", "show": "YES"}""" % (task_id, normalized_title)
 
     return client.query(stringquery)
 
@@ -32,7 +32,7 @@ def update_id(task_id):
 
 def complete_task(task_id):
 
-    stringquery = """NESTEDUPDATE tasks/%s/completed_at COMPLETE""" % (task_id)
+    stringquery = """NESTEDUPDATE tasks/%s/completed COMPLETE""" % (task_id)
 
     return client.query(stringquery)
 

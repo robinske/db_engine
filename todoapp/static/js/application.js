@@ -8,7 +8,8 @@ $(function () {
 $(document).ready(function() {
     // Todo list
     $(".todo li").click(function() {
-        $(this).toggleClass("todo-done");
+        $(this).addClass("todo-done");
+
     });
 
     // Init tooltips

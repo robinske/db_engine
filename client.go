@@ -56,6 +56,7 @@ func isLogEmpty() bool {
     if fileString == "" {
         return true
     }
+
     return false
 }
 

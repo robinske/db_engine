@@ -96,7 +96,9 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
         case "REMOVE": remove(connection, key)
         case "QUIT": quit(connection)
         case "SEARCH": search(connection, key)
-        case "APPLYLOG": connection.Write([]byte("Updating with most recent log"))
+        // case "APPLYLOG": applyLog(connection)
+        case "APPLYLOG": connection.Write([]byte("Updated with most recent log"))
+        case "SAVE": save()
         case "CLEARLOG": clearLog(LOGFILE)
         default: connection.Write([]byte("Instruction not recognized"))
     }
@@ -480,6 +482,35 @@ func openLog(filename string) (disk *os.File) {
     }
 
     return
+}
+
+func applyLog(connection net.Conn) {
+
+    buf := make([]byte, BUFFER_SIZE)
+
+    fileContents, err := ioutil.ReadFile(LOGFILE)
+    fileString := string(fileContents)
+
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fileArray := strings.Split(fileString, "\n")
+    fileArray = append(fileArray, "CLEARLOG")
+
+    for _, line := range fileArray {
+        if line != "" {
+            connection.Write([]byte(line))
+            inputEnd, err := connection.Read(buf[:])
+            if err != nil {
+                return
+            }
+            fmt.Printf("%s\n", string(buf[0:inputEnd]))
+        }
+    }
+
+    connection.Write([]byte("Updated with most recent log"))
+
 }
 
 func saveLog(dataInput []byte) { 
