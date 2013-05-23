@@ -60,6 +60,21 @@ Query Language // Available Operations
 
 Because data is backed by a hashmap, most operations mimic the runtime complexity of hashmaps.
 
+Valid keys
+* Any string value that does not contain spaces or colons
+
+Valid partial keys
+* Any string value that does not contain spaces
+* Will match any key that contains the partial key as a substring
+
+Valid values
+* Defaults to string, may contain spaces. 
+* May also be any valid JSON value (integers, Booleans, null, arrays, nested objects)
+* Updates to nested values assume it is an array of objects
+
+*Note: string data is normalized to ALL CAPS for processing/comparisons.*
+
+
 		  {
 		      "TASKID": 3,
 		      "TASKS" : 
@@ -77,64 +92,51 @@ Because data is backed by a hashmap, most operations mimic the runtime complexit
 		                ]
 		  }
 
-Valid keys
-* Any string value that does not contain spaces or colons
 
-Valid partial keys
-* Any string value that does not contain spaces
-* Will match any key that contains the partial key as a substring
-
-Valid values
-* Defaults to string, may contain spaces. 
-* May also be any valid JSON value (integers, Booleans, null, arrays, nested objects)
-* Updates to nested values assume it is an array of objects
-
-*Note: string data is normalized to ALL CAPS for processing/comparisons.*
-
-[SHOW [COLLECTIONS|DATA|DATABASE]](https://github.com/robinske/db_engine/blob/master/server.go#L108)
+**[SHOW [COLLECTIONS|DATA|DATABASE]](https://github.com/robinske/db_engine/blob/master/server.go#L108)**
 * Displays either:
 	- top level keys/collections 
 	- snapshot of current data
 	- database file
 	- ex: ("SHOW COLLECTIONS" displays current schema)
 
-[GET key](https://github.com/robinske/db_engine/blob/master/server.go#L135)
-    Returns the value of top level key
-    - ex: "GET TASKS" returns the JSON array value of tasks
+**[GET key](https://github.com/robinske/db_engine/blob/master/server.go#L135)**
+* Returns the value of top level key
+	- ex: "GET TASKS" returns the JSON array value of tasks
 
-[SEARCH partial key](https://github.com/robinske/db_engine/blob/master/server.go#L149)
-    Displays value of nested keys
-    - [flattens keys](https://github.com/robinske/db_engine/blob/master/server.go#L387) into their respective paths, searches resulting keys for nested keys
-    - ex: "SEARCH ID" returns a list of IDs:
-					"TASKS:1:ID: 2"
-					"TASKS:0:ID: 1"
+**[SEARCH partial key](https://github.com/robinske/db_engine/blob/master/server.go#L149)**
+* Displays value of nested keys
+	- [flattens keys](https://github.com/robinske/db_engine/blob/master/server.go#L387) into their respective paths, searches resulting keys for nested keys
+	- ex: "SEARCH ID" returns a list of IDs:
+		- "TASKS:1:ID: 2"
+		- "TASKS:0:ID: 1"
 
-[SEARCHBYKEY key value](https://github.com/robinske/db_engine/blob/master/server.go#L169)
-		Displays all keys where, given a key and value, that value is true
-		- ex: "SEARCHBYKEY ID 1" returns:
-		      "TASKS:0:TASK_ID: 1"
+**[SEARCHBYKEY key value](https://github.com/robinske/db_engine/blob/master/server.go#L169)**
+* Displays all keys where, given a key and value, that value is true
+	- ex: "SEARCHBYKEY ID 1" returns:
+		- "TASKS:0:TASK_ID: 1"
 
-[SET key value](https://github.com/robinske/db_engine/blob/master/server.go#L198)
-    Adds new top level key/collection
-    - ex: "SET NEWKEY NEWVALUE"
+**[SET key value](https://github.com/robinske/db_engine/blob/master/server.go#L198)**
+* Adds new top level key/collection
+	- ex: "SET NEWKEY NEWVALUE"
 
-[UPDATE key value](https://github.com/robinske/db_engine/blob/master/server.go#L212)
-    Updates top level key/collection (default string values)
-    - ex: "UPDATE TASKID 4" changes TASKID from integer 3 to string 4
+**[UPDATE key value](https://github.com/robinske/db_engine/blob/master/server.go#L212)**
+* Updates top level key/collection (default string values)
+	- ex: "UPDATE TASKID 4" changes TASKID from integer 3 to string 4
 
-[UPDATEINT key value](https://github.com/robinske/db_engine/blob/master/server.go#L225)
-    Updates top level key/collection where value will become an integer
-    - same as update, but "UPDATE TASKID 4" changes TASKID from integer 3 to integer 4
+**[UPDATEINT key value](https://github.com/robinske/db_engine/blob/master/server.go#L225)**
+* Updates top level key/collection where value will become an integer
+	- same as update, but "UPDATE TASKID 4" changes TASKID from integer 3 to integer 4
 
-[NESTEDUPDATE top_level_key/unique_id/key_to_update value](https://github.com/robinske/db_engine/blob/master/server.go#L239)
-    Updates a value nested within a JSON object inside an array. It uses the unique id to find the array index and constructs the full key path for the update. Update is then performed like standard UPDATE.
-    - ex: "NESTEDUPDATE TASKS/2/COMPLETED YES" will update that we have completed doing the dishes.
-    - Must provide a unique id for the path, in this case "2"
+**[NESTEDUPDATE top_level_key/unique_id/key_to_update value](https://github.com/robinske/db_engine/blob/master/server.go#L239)**
+* Updates a value nested within a JSON object inside an array. It uses the unique id to find the array index and constructs the full key path for the update. Update is then performed like standard UPDATE.
+	- ex: "NESTEDUPDATE TASKS/2/COMPLETED YES" will update that we have completed doing the dishes.
+	- Must provide a unique id for the path, in this case "2"
 
-[ADDTO key value](https://github.com/robinske/db_engine/blob/master/server.go#L283)
-    Set for nested values. Appends new values to the end of a JSON array and reinserts into the cache
-    - ex: "ADDTO TASKS {"TASK_ID":3, "TITLE":"NEW TASK", "COMPLETED":"NO"}" adds a third task to our task list
+**[ADDTO key value](https://github.com/robinske/db_engine/blob/master/server.go#L283)**
+* Set for nested values. Appends new values to the end of a JSON array and reinserts into the cache
+	- ex: "ADDTO TASKS {"TASK_ID":3, "TITLE":"NEW TASK", "COMPLETED":"NO"}" adds a third task to our task list
 
-[REMOVE key](https://github.com/robinske/db_engine/blob/master/server.go#L313)
-    Deletes top level key/collection
-    - ex: "REMOVE NEWKEY" deletes NEWKEY and its data
+**[REMOVE key](https://github.com/robinske/db_engine/blob/master/server.go#L313)**
+* Deletes top level key/collection
+	- ex: "REMOVE NEWKEY" deletes NEWKEY and its data
