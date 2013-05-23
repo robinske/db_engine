@@ -60,7 +60,7 @@ Query Language // Available Operations
 
 Because data is backed by a hashmap, most operations mimic the runtime complexity of hashmaps.
 
-		  `{
+		  {
 		      "TASKID": 3,
 		      "TASKS" : 
 		                [
@@ -75,25 +75,25 @@ Because data is backed by a hashmap, most operations mimic the runtime complexit
 		                        "COMPLETED": "NO"
 		                    }
 		                ]
-		  }`
+		  }
 
 Valid keys
-    * Any string value that does not contain spaces or colons
+* Any string value that does not contain spaces or colons
 Valid partial keys
-    * Any string value that does not contain spaces
-    * Will match any key that contains the partial key as a substring
+* Any string value that does not contain spaces
+* Will match any key that contains the partial key as a substring
 Valid values
-    * Defaults to string, may contain spaces. 
-    * May also be any valid JSON value (integers, Booleans, null, arrays, nested objects)
-    * Updates to nested values assume it is an array of objects
-Note: string data is normalized to ALL CAPS for processing/comparisons.
+* Defaults to string, may contain spaces. 
+* May also be any valid JSON value (integers, Booleans, null, arrays, nested objects)
+* Updates to nested values assume it is an array of objects
+*Note: string data is normalized to ALL CAPS for processing/comparisons.*
 
 [SHOW [COLLECTIONS|DATA|DATABASE]](https://github.com/robinske/db_engine/blob/master/server.go#L108)
-    Displays either:
-    - top level keys/collections 
-    - snapshot of current data
-    - database file
-    - ex: ("SHOW COLLECTIONS" displays current schema)
+* Displays either:
+	- top level keys/collections 
+	- snapshot of current data
+	- database file
+	- ex: ("SHOW COLLECTIONS" displays current schema)
 
 [GET key](https://github.com/robinske/db_engine/blob/master/server.go#L135)
     Returns the value of top level key
