@@ -23,7 +23,7 @@ The server and client communicate by default on port 4127. Implemented using the
 Storage Schema
 ------------------------
 
-Data is stored to and loaded from disk as JSON. On load, data is unmarshaled from any valid JSON string using the Go JSON package. Keys must be strings but values can be any type, including other JSON objects or arrays. Data is repackaged as JSON (line 418, line 573) when saved to disk.
+Data is stored to and loaded from disk as JSON. On load, data is unmarshaled from any valid JSON string using the Go JSON package. Keys must be strings but values can be any type, including other JSON objects or arrays. [Data is repackaged as JSON](https://github.com/robinske/db_engine/blob/master/server.go) (line 418, line 573) when saved to disk.
 
 In-Memory Data Storage
 -----------------------------------
