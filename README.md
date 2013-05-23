@@ -8,9 +8,8 @@ GoSQL is an in-memory data store in the style of Redis or MongoDB. Data remains 
 Despite the name, there is no SQL in GoSQL.
 
 Languages:
-
-    * Go (server and client)
-    * Python (client for web application)
+* Go (server and client)
+* Python (client for web application)
 
 Network Protocol
 ------------------------
