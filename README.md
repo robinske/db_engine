@@ -79,13 +79,16 @@ Because data is backed by a hashmap, most operations mimic the runtime complexit
 
 Valid keys
 * Any string value that does not contain spaces or colons
+
 Valid partial keys
 * Any string value that does not contain spaces
 * Will match any key that contains the partial key as a substring
+
 Valid values
 * Defaults to string, may contain spaces. 
 * May also be any valid JSON value (integers, Booleans, null, arrays, nested objects)
 * Updates to nested values assume it is an array of objects
+
 *Note: string data is normalized to ALL CAPS for processing/comparisons.*
 
 [SHOW [COLLECTIONS|DATA|DATABASE]](https://github.com/robinske/db_engine/blob/master/server.go#L108)
