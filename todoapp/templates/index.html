@@ -39,13 +39,13 @@
 					{% for task in tasks %} 
 					{% if task['SHOW'] == "YES" %}
 					{% if task['COMPLETED'] == "NIL" %}
-					<li class="ajax_todo" id="{{task['TASK_ID']}}">
+					<li>
 					{% else %}
-					<li class="todo-done ajax_todo" id="{{task['TASK_ID']}}">
+					<li class="todo-done">
 					{% endif %}
 						<div class="todo-icon fui-new-16"></div>
 						<div class="todo-remove fui-cross-16" id="{{task['TASK_ID']}}"></div>
-						<div class="todo-content">
+						<div class="todo-content ajax_todo" id="{{task['TASK_ID']}}">
 							{% if task['TITLE'] == "FIND THE MEANING OF LIFE" %}
 							<h4 class="todo-name">42</h4>
 							{% else %}
@@ -106,7 +106,7 @@
     <script>
 
 			$(".ajax_todo").on("click", function(event){
-	    	// $('event.currentTarget.id').bind('click', false);
+	    	$('event.currentTarget.id').bind('click', false);
 	    	if (!$(this).hasClass("todo-done")){
 		    	$.ajax({
 						url: "/complete_task",

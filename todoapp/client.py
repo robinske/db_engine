@@ -16,10 +16,6 @@ def connect(DATABASE):
 		print "{}".format(r)
 		
 		apply_log()
-		# sock.sendall("APPLYLOG")
-		
-		# r = sock.recv(4096)
-		# print "{}".format(r)
 
 		return
 

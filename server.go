@@ -28,11 +28,31 @@ var counter = 0
 const (
     PORT = ":4127"
     END = 2
-    LOGFILE = "outputs/log.txt"
+    LOGFILE = "outputs/log2.txt"
     BUFFER_SIZE = 1024
 )
 
-func echoServer(connection net.Conn) {
+func isInArray(element string, list []string) bool {
+    for _, b := range list {
+        if b == element {
+            return true
+        }
+    }
+
+    return false
+}
+
+func runLog(instruction string, dataInput []byte) {
+
+    logInstructions := []string{"SET", "UPDATE", "NESTEDUPDATE", "REMOVE", "UPDATEINT","ADDTO"}
+
+    if isInArray(instruction, logInstructions) {
+        stringData := "\n"+string(dataInput)
+        saveLog([]byte(stringData))
+    }
+}
+
+func dispatch(connection net.Conn) {
 
     for {
         buf := make([]byte, BUFFER_SIZE)
@@ -45,11 +65,13 @@ func echoServer(connection net.Conn) {
         message := string(dataInput)
 
         instruction, key, value := parseRequest(message)
+
+        runLog(instruction, dataInput)
         
-        if instruction == "SET" || instruction == "UPDATE" || instruction == "NESTEDUPDATE" || instruction == "REMOVE" || instruction == "UPDATEINT" || instruction == "ADDTO" {
-            stringData := "\n"+string(dataInput)
-            saveLog([]byte(stringData))
-        }
+        // if instruction == "SET" || instruction == "UPDATE" || instruction == "NESTEDUPDATE" || instruction == "REMOVE" || instruction == "UPDATEINT" || instruction == "ADDTO" {
+        //     stringData := "\n"+string(dataInput)
+        //     saveLog([]byte(stringData))
+        // }
 
         callCacheData(connection, instruction, key, value)
 
@@ -89,6 +111,7 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
         case "UPDATEINT": 
             intValue, _ := strconv.Atoi(value)
             updateInt(connection, key, intValue)
+        // case ""
         case "ADDTO": addto(connection, key, value)
         case "NESTEDUPDATE": updateNested(connection, key, value)
         case "LOAD": load(connection, key)
@@ -96,7 +119,6 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
         case "REMOVE": remove(connection, key)
         case "QUIT": quit(connection)
         case "SEARCH": search(connection, key)
-        // case "APPLYLOG": applyLog(connection)
         case "APPLYLOG": connection.Write([]byte("Updated with most recent log"))
         case "SAVE": save()
         case "CLEARLOG": clearLog(LOGFILE)
@@ -110,7 +132,7 @@ func show(connection net.Conn, key string) {
     switch key {
         case "COLLECTIONS": {
             if len(cache.Data) == 0 {
-                connection.Write([]byte("NO COLLECTIONS AD`D"))
+                connection.Write([]byte("NO COLLECTIONS ADDED"))
                 return
             } else {
                 for k := range cache.Data {
@@ -236,6 +258,8 @@ func updateInt(connection net.Conn, key string, value int) {
         connection.Write([]byte("Updated "+key+":"+strValue))
     }
 }
+
+
 
 func updateNested(connection net.Conn, key, value string) {
 
@@ -379,7 +403,7 @@ func insert(inputMap, Data map[string]interface{}) map[string]interface{} {
                 }
                 Data[key] = tmpArray
             default:
-                fmt.Println("Missed something", v)
+                fmt.Println("Error Occured", v)
         }
     }
     return Data
@@ -601,6 +625,6 @@ func main() {
             return
         }
 
-        go echoServer(conn)     // goroutine manages concurrent processes
+        go dispatch(conn)     // goroutine manages concurrent processes
     }
 }

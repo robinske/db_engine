@@ -9,7 +9,6 @@ $(document).ready(function() {
     // Todo list
     $(".todo li").click(function() {
         $(this).addClass("todo-done");
-
     });
 
     // Init tooltips
