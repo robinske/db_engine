@@ -107,11 +107,14 @@ func callCacheData(connection net.Conn, instruction, key string, optionalValue..
         case "GET": get(connection, key)
         case "SEARCHBYKEY": searchByKey(connection, key, value)
         case "SET": set(connection, key, value)
+        case "SETINT": 
+            intValue, _ := strconv.Atoi(value)
+            setInt(connection, key, intValue)
         case "UPDATE":  update(connection, key, value)
         case "UPDATEINT": 
             intValue, _ := strconv.Atoi(value)
             updateInt(connection, key, intValue)
-        // case ""
+        case "INCREMENT": increment(connection, key)
         case "ADDTO": addto(connection, key, value)
         case "NESTEDUPDATE": updateNested(connection, key, value)
         case "LOAD": load(connection, key)
@@ -231,7 +234,19 @@ func set(connection net.Conn, key, value string) {
     }
 }
 
+func setInt(connection net.Conn, key string, value int) {
 
+    _, ok := cache.Data[key]
+    if ok {
+        connection.Write([]byte(key+" already added. To modify, UPDATE key"))
+    } else {
+        cache.Lock()
+        cache.Data[key] = value
+        cache.Unlock()
+        v := fmt.Sprintf("%v", value)
+        connection.Write([]byte("Added "+key+":"+v))
+    }
+}
 func update(connection net.Conn, key, value string) {
     
     _, ok := cache.Data[key]
@@ -259,7 +274,25 @@ func updateInt(connection net.Conn, key string, value int) {
     }
 }
 
-
+func increment(connection net.Conn, key string) {
+    _, ok := cache.Data[key]
+    if !ok {
+        connection.Write([]byte("No key to increment"))
+    } else {
+        cache.Lock()
+        ov := cache.Data[key]
+        if _, ok := ov.(int); ok {
+            nv := ov.(int) + 1
+            cache.Data[key] = nv
+            oldValue := fmt.Sprintf("%v", ov)
+            newValue := fmt.Sprintf("%v", nv)
+            connection.Write([]byte("Value updated from "+oldValue+" to "+newValue))
+        } else {
+            connection.Write([]byte("Value is not an integer"))
+        }
+        cache.Unlock()
+    }
+}
 
 func updateNested(connection net.Conn, key, value string) {
 
